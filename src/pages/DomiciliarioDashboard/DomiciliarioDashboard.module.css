@@ -51,7 +51,17 @@
   font-size: 15px;
   text-align: left;
 }
-
+.lqPerfilWrapper {
+  width: 100%;
+  padding: 25px;
+}
+.lqPerfilContainer {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 30px;
+  background: #f1f5f9;
+}
 .lqMenu button:hover,
 .lqCloseDay:hover {
   background: rgba(255,255,255,0.08);

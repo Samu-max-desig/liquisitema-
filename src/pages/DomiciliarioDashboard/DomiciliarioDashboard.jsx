@@ -12,6 +12,9 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "../../config/supabase";
+import Perfil from "./Perfil/Perfil";
+import Configuracion from "./Configuracion/Configuracion";
+
 import Swal from "sweetalert2";
 export default function DomiciliarioDashboard() {
   const [modalCerrarDia, setModalCerrarDia] = useState(false);
@@ -23,7 +26,10 @@ export default function DomiciliarioDashboard() {
   const [telefonoBusqueda, setTelefonoBusqueda] = useState("");
   const [clienteEncontrado, setClienteEncontrado] = useState(null);
   const [domicilioSeleccionado, setDomicilioSeleccionado] = useState(null);
+const [vistaActual, setVistaActual] = useState("inicio");
   const [clienteNoEncontrado, setClienteNoEncontrado] = useState(false);
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
+  console.log("USUARIO DASHBOARD:", usuario);
   const [reporteData, setReporteData] = useState({
     motivo: "",
     observaciones: "",
@@ -86,18 +92,19 @@ export default function DomiciliarioDashboard() {
     const { data, error: supabaseError } = await supabase
 
       .from("domicilios")
-      .insert([
-        {
-          numero_factura: numeroFactura,
-          cliente: formData.cliente,
-          telefono: formData.telefono,
-          direccion: formData.direccion,
-          costo: formData.valor,
-          metodo_pago: formData.metodo_pago,
-          observaciones: formData.observaciones,
-          estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
-        },
-      ]);
+    .insert([
+  {
+    numero_factura: numeroFactura,
+    cliente: formData.cliente,
+    telefono: formData.telefono,
+    direccion: formData.direccion,
+    costo: formData.valor,
+    metodo_pago: formData.metodo_pago,
+    observaciones: formData.observaciones,
+    estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
+    domiciliario_id: usuario.id,
+  },
+]);
 
     if (supabaseError) {
       console.error(supabaseError);
@@ -262,6 +269,69 @@ export default function DomiciliarioDashboard() {
       text: "El cierre fue realizado correctamente.",
     });
   };
+  
+const hora = new Date().getHours();
+
+let saludo = "Hola";
+
+if (hora >= 5 && hora < 12) {
+  saludo = "Buenos días";
+} else if (hora >= 12 && hora < 18) {
+  saludo = "Buenas tardes";
+} else {
+  saludo = "Buenas noches";
+}
+const mensajes = [
+  "Bienvenido a Liquisistema",
+  "Gestiona tus domicilios fácilmente",
+  "Mantén tu operación organizada",
+  "Recuerda realizar el cierre del día",
+  "Un buen servicio genera clientes felices",
+];
+
+const [mensajeIndex, setMensajeIndex] = useState(0);
+useEffect(() => {
+  const intervalo = setInterval(() => {
+    setMensajeIndex((prev) => (prev + 1) % mensajes.length);
+  }, 5000);
+
+  return () => clearInterval(intervalo);
+}, []);
+const fechaActual = new Date().toLocaleDateString("es-CO", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const cerrarSesion = async () => {
+  const resultado = await Swal.fire({
+    title: "Cerrar sesión",
+    text: "¿Deseas cerrar sesión?",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Sí, cerrar sesión",
+    cancelButtonText: "Cancelar",
+    confirmButtonColor: "#dc2626",
+    cancelButtonColor: "#64748b",
+  });
+
+  if (!resultado.isConfirmed) return;
+
+  await supabase.auth.signOut();
+
+  localStorage.clear();
+
+  Swal.fire({
+    icon: "success",
+    title: "Sesión cerrada",
+    timer: 1200,
+    showConfirmButton: false,
+  });
+
+  setTimeout(() => {
+    window.location.href = "/";
+  }, 1200);
+};
   return (
     <div className={styles.lqDashboard}>
       <aside
@@ -274,20 +344,20 @@ export default function DomiciliarioDashboard() {
         </div>
 
         <nav className={styles.lqMenu}>
-          <button>
-            <HomeIcon className={styles.lqIcon} />
-            Inicio
-          </button>
+    <button onClick={() => setVistaActual("inicio")}>
+  <HomeIcon className={styles.lqIcon} />
+  Inicio
+</button>
 
-          <button>
-            <UserIcon className={styles.lqIcon} />
-            Perfil
-          </button>
+<button onClick={() => setVistaActual("perfil")}>
+  <UserIcon className={styles.lqIcon} />
+  Perfil
+</button>
 
-          <button>
-            <Cog6ToothIcon className={styles.lqIcon} />
-            Configuración
-          </button>
+          <button onClick={() => setVistaActual("configuracion")}>
+  <Cog6ToothIcon className={styles.lqIcon} />
+  Configuración
+</button>
         </nav>
 
         <div className={styles.lqSidebarFooter}>
@@ -299,10 +369,13 @@ export default function DomiciliarioDashboard() {
             Cerrar Día
           </button>
 
-          <button className={styles.lqLogout}>
-            <ArrowLeftOnRectangleIcon className={styles.lqIcon} />
-            Cerrar Sesión
-          </button>
+          <button
+  className={styles.lqLogout}
+  onClick={cerrarSesion}
+>
+  <ArrowLeftOnRectangleIcon className={styles.lqIcon} />
+  Cerrar Sesión
+</button>
         </div>
       </aside>
       {menuOpen && (
@@ -318,10 +391,14 @@ export default function DomiciliarioDashboard() {
 
         <span>Liquisistema</span>
       </div>
+     {vistaActual === "inicio" && (
+<>
       <main className={styles.lqMain}>
         <section className={styles.lqWelcomeCard}>
-          <h1>Hola, Samuel</h1>
-          <p>Bienvenido a Liquisistema</p>
+          <h1>
+  {saludo}, {usuario?.nombre}
+</h1>
+          <p>{mensajes[mensajeIndex]}</p>
         </section>
 
         <section className={styles.lqSearchContainer}>
@@ -548,6 +625,18 @@ export default function DomiciliarioDashboard() {
           </div>
         </section>
       </main>
+    </>
+      )}
+    {vistaActual === "perfil" && (
+  <div className={styles.lqPerfilContainer}>
+    <Perfil usuario={usuario} />
+  </div>
+)}
+{vistaActual === "configuracion" && (
+  <div className={styles.lqPerfilContainer}>
+    <Configuracion />
+  </div>
+)}
       {modalCerrarDia && (
         <div className={styles.lqModalOverlay}>
           <div className={styles.lqModal}>
@@ -637,5 +726,4 @@ export default function DomiciliarioDashboard() {
         </div>
       )}
     </div>
-  );
-}
+  );}

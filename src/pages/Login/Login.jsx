@@ -38,21 +38,27 @@ function Login() {
     try {
       setLoading(true);
 
-      const { usuario } = await login(documento, password);
+   const { usuario } = await login(documento, password);
+console.log("USUARIO LOGIN:", usuario);
+localStorage.setItem(
+  "usuario",
+  JSON.stringify(usuario)
+);
+console.log("GUARDADO:", usuario);
+console.log("LOCALSTORAGE:", localStorage.getItem("usuario"));
+Swal.fire({
+  icon: "success",
+  title: "Bienvenido",
+  text: `Hola ${usuario.nombre}`,
+  timer: 1200,
+  showConfirmButton: false,
+});
 
-      Swal.fire({
-        icon: "success",
-        title: "Bienvenido",
-        text: `Hola ${usuario.nombre}`,
-        timer: 1200,
-        showConfirmButton: false,
-      });
-
-      if (usuario.rol === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/domiciliario");
-      }
+if (usuario.rol === "admin") {
+  navigate("/admin");
+} else {
+  navigate("/domiciliario");
+}
     } catch (error) {
       Swal.fire({
         icon: "error",
