@@ -1,0 +1,67 @@
+.sidebar {
+  width: 260px;
+  height: 100vh;
+
+  background: #0f172a;
+
+  display: flex;
+  flex-direction: column;
+
+  color: white;
+}
+
+.logoContainer {
+  padding: 25px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+
+.logoContainer h2 {
+  margin: 0;
+}
+
+.menu {
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+  padding: 20px;
+}
+
+.menu button,
+.logout {
+  border: none;
+  background: transparent;
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 12px;
+  border-radius: 10px;
+
+  cursor: pointer;
+  transition: .3s;
+}
+
+.menu button:hover,
+.logout:hover {
+  background: rgba(255,255,255,.1);
+}
+
+.active {
+  background: #2563eb !important;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+
+.logout {
+  margin: 20px;
+}
