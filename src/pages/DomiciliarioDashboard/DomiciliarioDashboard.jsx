@@ -10,13 +10,19 @@ import {
   PencilSquareIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
+  TruckIcon,
+  SignalIcon,
+  CameraIcon,
+  PhotoIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "../../config/supabase";
 import Perfil from "./Perfil/Perfil";
 import Configuracion from "./Configuracion/Configuracion";
-
+import CountUp from "react-countup";
 import Swal from "sweetalert2";
+console.log("CountUp:", CountUp);
 export default function DomiciliarioDashboard() {
+  const [mostrarComprobante, setMostrarComprobante] = useState(false);
   const [modalCerrarDia, setModalCerrarDia] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState("");
@@ -25,11 +31,13 @@ export default function DomiciliarioDashboard() {
   const [modalReporte, setModalReporte] = useState(false);
   const [telefonoBusqueda, setTelefonoBusqueda] = useState("");
   const [clienteEncontrado, setClienteEncontrado] = useState(null);
+  const [fotoComprobante, setFotoComprobante] = useState(null);
   const [domicilioSeleccionado, setDomicilioSeleccionado] = useState(null);
-const [vistaActual, setVistaActual] = useState("inicio");
+  const [vistaActual, setVistaActual] = useState("inicio");
   const [clienteNoEncontrado, setClienteNoEncontrado] = useState(false);
   const usuario = JSON.parse(localStorage.getItem("usuario"));
-  console.log("USUARIO DASHBOARD:", usuario);
+  const [mostrarImagen, setMostrarImagen] = useState(false);
+
   const [reporteData, setReporteData] = useState({
     motivo: "",
     observaciones: "",
@@ -92,19 +100,19 @@ const [vistaActual, setVistaActual] = useState("inicio");
     const { data, error: supabaseError } = await supabase
 
       .from("domicilios")
-    .insert([
-  {
-    numero_factura: numeroFactura,
-    cliente: formData.cliente,
-    telefono: formData.telefono,
-    direccion: formData.direccion,
-    costo: formData.valor,
-    metodo_pago: formData.metodo_pago,
-    observaciones: formData.observaciones,
-    estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
-    domiciliario_id: usuario.id,
-  },
-]);
+      .insert([
+        {
+          numero_factura: numeroFactura,
+          cliente: formData.cliente,
+          telefono: formData.telefono,
+          direccion: formData.direccion,
+          costo: formData.valor,
+          metodo_pago: formData.metodo_pago,
+          observaciones: formData.observaciones,
+          estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
+          domiciliario_id: usuario.id,
+        },
+      ]);
 
     if (supabaseError) {
       console.error(supabaseError);
@@ -269,69 +277,142 @@ const [vistaActual, setVistaActual] = useState("inicio");
       text: "El cierre fue realizado correctamente.",
     });
   };
-  
-const hora = new Date().getHours();
 
-let saludo = "Hola";
+  const hora = new Date().getHours();
 
-if (hora >= 5 && hora < 12) {
-  saludo = "Buenos días";
-} else if (hora >= 12 && hora < 18) {
-  saludo = "Buenas tardes";
-} else {
-  saludo = "Buenas noches";
-}
-const mensajes = [
-  "Bienvenido a Liquisistema",
-  "Gestiona tus domicilios fácilmente",
-  "Mantén tu operación organizada",
-  "Recuerda realizar el cierre del día",
-  "Un buen servicio genera clientes felices",
-];
+  let saludo = "Hola";
 
-const [mensajeIndex, setMensajeIndex] = useState(0);
-useEffect(() => {
-  const intervalo = setInterval(() => {
-    setMensajeIndex((prev) => (prev + 1) % mensajes.length);
-  }, 5000);
+  if (hora >= 5 && hora < 12) {
+    saludo = "Buenos días";
+  } else if (hora >= 12 && hora < 18) {
+    saludo = "Buenas tardes";
+  } else {
+    saludo = "Buenas noches";
+  }
+  const mensajes = [
+    "Bienvenido a Liquisistema",
+    "Gestiona tus domicilios fácilmente",
+    "Mantén tu operación organizada",
+    "Recuerda realizar el cierre del día",
+    "Un buen servicio genera clientes felices",
+  ];
 
-  return () => clearInterval(intervalo);
-}, []);
-const fechaActual = new Date().toLocaleDateString("es-CO", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-const cerrarSesion = async () => {
-  const resultado = await Swal.fire({
-    title: "Cerrar sesión",
-    text: "¿Deseas cerrar sesión?",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "Sí, cerrar sesión",
-    cancelButtonText: "Cancelar",
-    confirmButtonColor: "#dc2626",
-    cancelButtonColor: "#64748b",
+  const [mensajeIndex, setMensajeIndex] = useState(0);
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setMensajeIndex((prev) => (prev + 1) % mensajes.length);
+    }, 20000);
+
+    return () => clearInterval(intervalo);
+  }, []);
+  const fechaActual = new Date().toLocaleDateString("es-CO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
+  const cerrarSesion = async () => {
+    const resultado = await Swal.fire({
+      title: "Cerrar sesión",
+      text: "¿Deseas cerrar sesión?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Sí, cerrar sesión",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#64748b",
+    });
 
-  if (!resultado.isConfirmed) return;
+    if (!resultado.isConfirmed) return;
 
-  await supabase.auth.signOut();
+    await supabase.auth.signOut();
 
-  localStorage.clear();
+    localStorage.clear();
 
-  Swal.fire({
-    icon: "success",
-    title: "Sesión cerrada",
-    timer: 1200,
-    showConfirmButton: false,
-  });
+    Swal.fire({
+      icon: "success",
+      title: "Sesión cerrada",
+      timer: 1200,
+      showConfirmButton: false,
+    });
 
-  setTimeout(() => {
-    window.location.href = "/";
-  }, 1200);
-};
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 1200);
+  };
+
+  const totalDomicilios = domicilios.length;
+
+  const totalRecaudado = domicilios.reduce(
+    (acc, d) => acc + Number(d.costo || 0),
+    0,
+  );
+
+  const totalPendientes = domicilios.filter(
+    (d) => d.estado === "Pendiente",
+  ).length;
+
+  const totalPagados = domicilios.filter((d) => d.estado === "Pagado").length;
+  const tomarFoto = async (e) => {
+    const archivo = e.target.files[0];
+
+    if (!archivo) return;
+
+    setMostrarComprobante(false);
+
+    const confirmar = await Swal.fire({
+      title: "¿Subir comprobante?",
+      text: "¿Deseas subir esta foto como comprobante?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Sí, subir",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#2563eb",
+    });
+
+    if (!confirmar.isConfirmed) {
+      e.target.value = "";
+      return;
+    }
+
+    const nombreArchivo = `${Date.now()}-${archivo.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("comprobantes")
+      .upload(nombreArchivo, archivo);
+
+    if (uploadError) {
+      console.error("Error Storage:", uploadError);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: uploadError.message,
+      });
+
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("comprobantes")
+      .getPublicUrl(nombreArchivo);
+    await supabase
+      .from("domicilios")
+      .update({
+        comprobante_url: data.publicUrl,
+      })
+      .eq("id", domicilioSeleccionado.id);
+
+    console.log("URL pública:", data.publicUrl);
+
+    Swal.fire({
+      icon: "success",
+      title: "Comprobante subido",
+      text: "La foto fue subida correctamente",
+    });
+
+    e.target.value = "";
+  };
   return (
     <div className={styles.lqDashboard}>
       <aside
@@ -344,20 +425,20 @@ const cerrarSesion = async () => {
         </div>
 
         <nav className={styles.lqMenu}>
-    <button onClick={() => setVistaActual("inicio")}>
-  <HomeIcon className={styles.lqIcon} />
-  Inicio
-</button>
+          <button onClick={() => setVistaActual("inicio")}>
+            <HomeIcon className={styles.lqIcon} />
+            Inicio
+          </button>
 
-<button onClick={() => setVistaActual("perfil")}>
-  <UserIcon className={styles.lqIcon} />
-  Perfil
-</button>
+          <button onClick={() => setVistaActual("perfil")}>
+            <UserIcon className={styles.lqIcon} />
+            Perfil
+          </button>
 
           <button onClick={() => setVistaActual("configuracion")}>
-  <Cog6ToothIcon className={styles.lqIcon} />
-  Configuración
-</button>
+            <Cog6ToothIcon className={styles.lqIcon} />
+            Configuración
+          </button>
         </nav>
 
         <div className={styles.lqSidebarFooter}>
@@ -369,13 +450,10 @@ const cerrarSesion = async () => {
             Cerrar Día
           </button>
 
-          <button
-  className={styles.lqLogout}
-  onClick={cerrarSesion}
->
-  <ArrowLeftOnRectangleIcon className={styles.lqIcon} />
-  Cerrar Sesión
-</button>
+          <button className={styles.lqLogout} onClick={cerrarSesion}>
+            <ArrowLeftOnRectangleIcon className={styles.lqIcon} />
+            Cerrar Sesión
+          </button>
         </div>
       </aside>
       {menuOpen && (
@@ -391,252 +469,384 @@ const cerrarSesion = async () => {
 
         <span>Liquisistema</span>
       </div>
-     {vistaActual === "inicio" && (
-<>
-      <main className={styles.lqMain}>
-        <section className={styles.lqWelcomeCard}>
-          <h1>
-  {saludo}, {usuario?.nombre}
-</h1>
-          <p>{mensajes[mensajeIndex]}</p>
-        </section>
+      {vistaActual === "inicio" && (
+        <>
+          <main className={styles.lqMain}>
+            <section className={styles.lqWelcomeCard}>
+              <div className={styles.lqWelcomeContent}>
+                <div className={styles.lqWelcomeBadge}>
+                  <SignalIcon className={styles.lqBadgeIcon} />
+                  <span>En línea</span>
+                </div>
 
-        <section className={styles.lqSearchContainer}>
-          <MagnifyingGlassIcon className={styles.lqSearchIcon} />
-          <input
-            type="tel"
-            placeholder="Buscar cliente por teléfono..."
-            value={telefonoBusqueda}
-            onChange={(e) => {
-              const telefono = e.target.value.replace(/\D/g, "");
+                <h1>{saludo}</h1>
 
-              setTelefonoBusqueda(telefono);
-              buscarCliente(telefono);
-            }}
-          />
-        </section>
-        {clienteEncontrado && (
-          <div className={styles.lqClienteCard}>
-            <div className={styles.lqClienteHeader}>
-              <UserIcon className={styles.lqClienteIcon} />
-              <div>
-                <h3>{clienteEncontrado.nombre}</h3>
-                <span>Cliente encontrado</span>
+                <h2 className={styles.lqUserName}>{usuario?.nombre}</h2>
+
+                <p>{mensajes[mensajeIndex]}</p>
               </div>
-            </div>
 
-            <div className={styles.lqClienteInfo}>
-              <p>
-                <strong>Teléfono:</strong> {clienteEncontrado.telefono}
-              </p>
+              <div className={styles.lqWelcomeIcon}>
+                <TruckIcon />
+              </div>
+            </section>
 
-              <p>
-                <strong>Dirección:</strong> {clienteEncontrado.direccion}
-              </p>
-            </div>
-          </div>
-        )}
-        {clienteNoEncontrado && (
-          <div className={styles.lqClienteNoEncontrado}>
-            <h3>Cliente no encontrado</h3>
-            <p>
-              No existe ningún cliente registrado con ese número de teléfono.
-            </p>
-          </div>
-        )}
-        <section className={styles.lqContent}>
-          <div className={styles.lqFormCard}>
-            <h2>Nuevo Domicilio</h2>
-
-            <form className={styles.lqForm} onSubmit={guardarDomicilio}>
-              <input
-                type="text"
-                placeholder="Nombre del cliente"
-                value={formData.cliente}
-                className={
-                  !formData.cliente && error ? styles.lqInputError : ""
-                }
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    cliente: e.target.value,
-                  })
-                }
-              />
-
-              <input
-                type="text"
-                placeholder="Dirección"
-                value={formData.direccion}
-                className={
-                  submitted && !formData.direccion ? styles.lqInputError : ""
-                }
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    direccion: e.target.value,
-                  })
-                }
-              />
-
+            <section className={styles.lqSearchContainer}>
+              <MagnifyingGlassIcon className={styles.lqSearchIcon} />
               <input
                 type="tel"
-                placeholder="Teléfono"
-                value={formData.telefono}
-                className={
-                  submitted && !formData.telefono ? styles.lqInputError : ""
-                }
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    telefono: e.target.value.replace(/\D/g, ""),
-                  })
-                }
+                placeholder="Buscar cliente por teléfono..."
+                value={telefonoBusqueda}
+                onChange={(e) => {
+                  const telefono = e.target.value.replace(/\D/g, "");
+
+                  setTelefonoBusqueda(telefono);
+                  buscarCliente(telefono);
+                }}
               />
+            </section>
+            <section className={styles.lqStatsBar}>
+              <div className={styles.lqStatsItem}>
+                <span>Domicilios</span>
+                <strong>{totalDomicilios}</strong>
+              </div>
 
-              <input
-                type="number"
-                placeholder="Valor"
-                value={formData.valor}
-                className={
-                  submitted && !formData.valor ? styles.lqInputError : ""
-                }
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    valor: e.target.value,
-                  })
-                }
-              />
+              <div className={styles.lqStatsItem}>
+                <span>Pagados</span>
+                <strong>{totalPagados}</strong>
+              </div>
 
-              <input
-                type="number"
-                placeholder="Propina"
-                value={formData.propina}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    propina: e.target.value,
-                  })
-                }
-              />
+              <div className={styles.lqStatsItem}>
+                <span>Pendientes</span>
+                <strong>{totalPendientes}</strong>
+              </div>
 
-              <select
-                value={formData.metodo_pago}
-                className={
-                  submitted && !formData.metodo_pago ? styles.lqInputError : ""
-                }
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    metodo_pago: e.target.value,
-                  })
-                }
-              >
-                <option value="">Seleccione método de pago</option>
-                <option value="Efectivo">Efectivo</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Datáfono">Datáfono</option>
-                <option value="Otro">Otro</option>
-              </select>
+              <div className={`${styles.lqStatsItem} ${styles.lqMoney}`}>
+                <span>Recaudado</span>
+                <strong>
+                  $
+                  <CountUp.default
+                    end={totalRecaudado}
+                    duration={1.8}
+                    separator="."
+                  />
+                </strong>
+              </div>
+            </section>
+            {clienteEncontrado && (
+              <div className={styles.lqClienteCard}>
+                <div className={styles.lqClienteHeader}>
+                  <UserIcon className={styles.lqClienteIcon} />
+                  <div>
+                    <h3>{clienteEncontrado.nombre}</h3>
+                    <span>Cliente encontrado</span>
+                  </div>
+                </div>
 
-              <textarea
-                className={styles.lqTextarea}
-                placeholder="Observaciones"
-                value={formData.observaciones}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    observaciones: e.target.value,
-                  })
-                }
-              />
-              {error && <p className={styles.lqError}>{error}</p>}
-              <button type="submit" className={styles.lqSaveButton}>
-                Guardar Domicilio
-              </button>
-            </form>
-          </div>
+                <div className={styles.lqClienteInfo}>
+                  <p>
+                    <strong>Teléfono:</strong> {clienteEncontrado.telefono}
+                  </p>
 
-          <div className={styles.lqHistoryCard}>
-            <h2>Historial de Domicilios</h2>
-            <div className={styles.lqTableContainer}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Factura</th>
-                    <th>Cliente</th>
-                    <th>Teléfono</th>
-                    <th>Dirección</th>
-                    <th>Valor</th>
-                    <th>Método Pago</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
+                  <p>
+                    <strong>Dirección:</strong> {clienteEncontrado.direccion}
+                  </p>
+                </div>
+              </div>
+            )}
+            {clienteNoEncontrado && (
+              <div className={styles.lqClienteNoEncontrado}>
+                <h3>Cliente no encontrado</h3>
+                <p>
+                  No existe ningún cliente registrado con ese número de
+                  teléfono.
+                </p>
+              </div>
+            )}
+            <section className={styles.lqContent}>
+              <div className={styles.lqFormCard}>
+                <h2>Nuevo Domicilio</h2>
 
-                <tbody>
-                  {domicilios.map((domicilio) => (
-                    <tr key={domicilio.id}>
-                      <td>{domicilio.numero_factura}</td>
-                      <td>{domicilio.cliente}</td>
-                      <td>{domicilio.telefono}</td>
-                      <td>{domicilio.direccion}</td>
+                <form className={styles.lqForm} onSubmit={guardarDomicilio}>
+                  <input
+                    type="text"
+                    placeholder="Nombre del cliente"
+                    value={formData.cliente}
+                    className={
+                      !formData.cliente && error ? styles.lqInputError : ""
+                    }
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        cliente: e.target.value,
+                      })
+                    }
+                  />
 
-                      <td>
-                        ${Number(domicilio.costo).toLocaleString("es-CO")}
-                      </td>
+                  <input
+                    type="text"
+                    placeholder="Dirección"
+                    value={formData.direccion}
+                    className={
+                      submitted && !formData.direccion
+                        ? styles.lqInputError
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        direccion: e.target.value,
+                      })
+                    }
+                  />
 
-                      <td>{domicilio.metodo_pago}</td>
-                      <td>
-                        <span
-                          className={
-                            domicilio.estado === "Pagado"
-                              ? styles.lqEstadoPagado
-                              : domicilio.estado === "Cancelado"
-                                ? styles.lqEstadoCancelado
-                                : domicilio.estado === "Reportado"
-                                  ? styles.lqEstadoReportado
-                                  : styles.lqEstadoPendiente
-                          }
-                        >
-                          {domicilio.estado}
-                        </span>
-                      </td>
+                  <input
+                    type="tel"
+                    placeholder="Teléfono"
+                    value={formData.telefono}
+                    className={
+                      submitted && !formData.telefono ? styles.lqInputError : ""
+                    }
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        telefono: e.target.value.replace(/\D/g, ""),
+                      })
+                    }
+                  />
 
-                      <td>
-                        <div className={styles.lqActions}>
-                          <PencilSquareIcon className={styles.lqActionIcon} />
-                          <DocumentTextIcon className={styles.lqActionIcon} />
-                          <ExclamationTriangleIcon
-                            className={styles.lqActionIcon}
-                            onClick={() => {
-                              setDomicilioSeleccionado(domicilio);
-                              setModalReporte(true);
-                            }}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      </main>
-    </>
+                  <input
+                    type="number"
+                    placeholder="Valor"
+                    value={formData.valor}
+                    className={
+                      submitted && !formData.valor ? styles.lqInputError : ""
+                    }
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        valor: e.target.value,
+                      })
+                    }
+                  />
+
+                  <input
+                    type="number"
+                    placeholder="Propina"
+                    value={formData.propina}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        propina: e.target.value,
+                      })
+                    }
+                  />
+
+                  <select
+                    value={formData.metodo_pago}
+                    className={
+                      submitted && !formData.metodo_pago
+                        ? styles.lqInputError
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        metodo_pago: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Seleccione método de pago</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Datáfono">Datáfono</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+
+                  <textarea
+                    className={styles.lqTextarea}
+                    placeholder="Observaciones"
+                    value={formData.observaciones}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        observaciones: e.target.value,
+                      })
+                    }
+                  />
+                  {error && <p className={styles.lqError}>{error}</p>}
+                  <button type="submit" className={styles.lqSaveButton}>
+                    Guardar Domicilio
+                  </button>
+                </form>
+              </div>
+
+              <div className={styles.lqHistoryCard}>
+                <h2>Historial de Domicilios</h2>
+                <div className={styles.lqTableContainer}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Factura</th>
+                        <th>Cliente</th>
+                        <th>Teléfono</th>
+                        <th>Dirección</th>
+                        <th>Valor</th>
+                        <th>Método Pago</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {domicilios.map((domicilio) => (
+                        <tr key={domicilio.id}>
+                          <td>{domicilio.numero_factura}</td>
+                          <td>{domicilio.cliente}</td>
+                          <td>{domicilio.telefono}</td>
+                          <td>{domicilio.direccion}</td>
+
+                          <td>
+                            ${Number(domicilio.costo).toLocaleString("es-CO")}
+                          </td>
+
+                          <td>{domicilio.metodo_pago}</td>
+                          <td>
+                            <span
+                              className={
+                                domicilio.estado === "Pagado"
+                                  ? styles.lqEstadoPagado
+                                  : domicilio.estado === "Cancelado"
+                                    ? styles.lqEstadoCancelado
+                                    : domicilio.estado === "Reportado"
+                                      ? styles.lqEstadoReportado
+                                      : styles.lqEstadoPendiente
+                              }
+                            >
+                              {domicilio.estado}
+                            </span>
+                          </td>
+
+                          <td>
+                            <div className={styles.lqActions}>
+                              <PencilSquareIcon
+                                className={styles.lqActionIcon}
+                              />
+                              <DocumentTextIcon
+                                className={styles.lqActionIcon}
+                                onClick={() => {
+                                  setDomicilioSeleccionado(domicilio);
+                                  setMostrarComprobante(true);
+                                }}
+                              />
+                              <ExclamationTriangleIcon
+                                className={styles.lqActionIcon}
+                                onClick={() => {
+                                  setDomicilioSeleccionado(domicilio);
+                                  setModalReporte(true);
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </main>
+        </>
       )}
-    {vistaActual === "perfil" && (
-  <div className={styles.lqPerfilContainer}>
-    <Perfil usuario={usuario} />
-  </div>
-)}
-{vistaActual === "configuracion" && (
-  <div className={styles.lqPerfilContainer}>
-    <Configuracion />
-  </div>
-)}
+      {vistaActual === "perfil" && (
+        <div className={styles.lqPerfilContainer}>
+          <Perfil usuario={usuario} />
+        </div>
+      )}
+      {vistaActual === "configuracion" && (
+        <div className={styles.lqPerfilContainer}>
+          <Configuracion />
+        </div>
+      )}
+      {mostrarComprobante && (
+        <div
+          className={styles.lqSheetOverlay}
+          onClick={() => setMostrarComprobante(false)}
+        >
+          <div
+            className={styles.lqBottomSheet}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {domicilioSeleccionado?.comprobante_url ? (
+              <button
+                className={styles.lqSheetButton}
+                onClick={() => setMostrarImagen(true)}
+              >
+                Ver comprobante
+              </button>
+            ) : (
+              <>
+                <button
+                  className={styles.lqSheetButton}
+                  onClick={() => document.getElementById("cameraInput").click()}
+                >
+                  <CameraIcon className={styles.lqSheetIcon} />
+                  Tomar foto
+                </button>
+
+                <button
+                  className={styles.lqSheetButton}
+                  onClick={() =>
+                    document.getElementById("galleryInput").click()
+                  }
+                >
+                  <PhotoIcon className={styles.lqSheetIcon} />
+                  <span>Subir imagen</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {mostrarImagen && (
+        <div
+          className={styles.lqImageOverlay}
+          onClick={() => setMostrarImagen(false)}
+        >
+          <div
+            className={styles.lqImageModal}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={domicilioSeleccionado.comprobante_url}
+              alt="Comprobante"
+              className={styles.lqImagePreview}
+            />
+
+            <button
+              className={styles.lqCloseImage}
+              onClick={() => setMostrarImagen(false)}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        id="cameraInput"
+        style={{ display: "none" }}
+        onChange={tomarFoto}
+      />
+      <input
+        type="file"
+        accept="image/*"
+        id="galleryInput"
+        style={{ display: "none" }}
+        onChange={tomarFoto}
+      />
       {modalCerrarDia && (
         <div className={styles.lqModalOverlay}>
           <div className={styles.lqModal}>
@@ -726,4 +936,5 @@ const cerrarSesion = async () => {
         </div>
       )}
     </div>
-  );}
+  );
+}

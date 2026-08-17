@@ -6,95 +6,316 @@
 }
 
 .perfilHeader {
-  margin-bottom: 30px;
+  background: white;
+
+  border-radius: 30px;
+
+  padding: 50px 30px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  border: 1px solid #e2e8f0;
+
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+
+  position: relative;
+  overflow: hidden;
+
+}
+
+.perfilHeader::before,
+.perfilHeader::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+background: rgba(59, 130, 246, 0.18);
+  animation: flotar 6s ease-in-out infinite;
+}
+
+.perfilHeader::before {
+  width: 250px;
+  height: 250px;
+  top: -100px;
+  left: -80px;
+}
+
+.perfilHeader::after {
+  width: 180px;
+  height: 180px;
+  bottom: -60px;
+  right: -50px;
+  animation-delay: 2s;
+}
+
+@keyframes flotar {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.bubble1,
+.bubble2,
+.bubble3,
+.bubble4 {
+  position: absolute;
+  border-radius: 50%;
+background: rgba(59, 130, 246, 0.18);
+  animation: flotar 6s ease-in-out infinite;
+}
+
+.bubble1 {
+  width: 250px;
+  height: 250px;
+  top: -100px;
+  left: -80px;
+}
+
+.bubble2 {
+  width: 180px;
+  height: 180px;
+  bottom: -60px;
+  right: -50px;
+  animation-delay: 2s;
+}
+
+.bubble3 {
+  width: 120px;
+  height: 120px;
+  top: 40px;
+  right: 180px;
+  animation-delay: 1s;
+}
+
+.bubble4 {
+  width: 90px;
+  height: 90px;
+  bottom: 60px;
+  left: 150px;
+  animation-delay: 3s;
+}
+
+.perfilAvatar {
+  width: 150px;
+  height: 150px;
+
+  border-radius: 50%;
+
+  background: linear-gradient(
+    135deg,
+    #3b82f6,
+    #2563eb
+  );
+
+  border: 6px solid white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 20px;
+
+  box-shadow: 0 15px 35px rgba(37, 99, 235, 0.25);
+}
+
+.avatarIcon {
+  width: 80px;
+  height: 80px;
+  color: white;
 }
 
 .perfilHeader h1 {
-  font-size: 2.2rem;
+  font-size: 3rem;
   font-weight: 700;
+
   color: #0f172a;
-}
 
-.perfilHeader p {
-  color: #64748b;
-  margin-top: 5px;
+  margin-bottom: 15px;
 }
+.estado {
+  padding: 10px 25px;
 
-.perfilGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-}
+  border-radius: 999px;
 
-.card {
-  background: white;
-  border-radius: 18px;
-  padding: 25px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-}
+  background: #dcfce7;
 
-.card span {
-  display: block;
-  color: #64748b;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+  color: #15803d;
+
   font-weight: 600;
+
+  border: 1px solid #bbf7d0;
 }
 
-.card h3 {
-  color: #0f172a;
-  font-size: 1.6rem;
+
+.perfilAvatar {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
 }
 
-.section {
+.avatarOverlay {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.45);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 0;
+  transition: 0.25s ease;
+}
+
+.perfilAvatar:hover .avatarOverlay {
+  opacity: 1;
+}
+
+.avatarUploadIcon {
+  width: 45px;
+  height: 45px;
+  color: white;
+}
+
+.datosCard {
   background: white;
-  border-radius: 20px;
-  padding: 30px;
-  margin-bottom: 30px;
+  border-radius: 25px;
+  padding: 25px;
+  margin-top: 25px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 25px rgba(0,0,0,.05);
 }
 
-.section h2 {
-  margin-bottom: 25px;
+.datosCard h2 {
+  margin-bottom: 20px;
   color: #0f172a;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
+  font-weight: 700;
 }
 
-.statsGrid {
+.datoItem {
+  padding: 14px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.datoItem:last-child {
+  border-bottom: none;
+}
+
+.datoItem span {
+  display: block;
+  font-size: .8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.datoItem p {
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.perfilContenido {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-top: 25px;
+}
+
+.resumenContainer {
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
-.statCard {
-  background: #f8fafc;
-  border-radius: 16px;
+.resumenCard {
+  background: white;
+  border-radius: 25px;
   padding: 25px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
 }
 
-.statCard span {
+.resumenCard span {
   display: block;
   color: #64748b;
   font-size: 0.9rem;
   margin-bottom: 10px;
 }
 
-.statCard h3 {
+.resumenCard h3 {
+  color: #0f172a;
   font-size: 2rem;
+  font-weight: 700;
+}
+.graficaCard {
+  background: white;
+  border-radius: 25px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 20px rgba(0,0,0,.05);
+}
+
+.graficaCard h3 {
+  margin-bottom: 20px;
   color: #0f172a;
 }
 
-.infoBox {
-  background: #f8fafc;
-  border-radius: 16px;
-  padding: 20px;
-  line-height: 1.8;
+.barraItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.barraItem span {
+  width: 40px;
+  font-weight: 600;
   color: #475569;
+}
+
+.barraItem small {
+  min-width: 20px;
+  text-align: right;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.barra {
+  flex: 1;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barraFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #2563eb,
+    #60a5fa
+  );
+}
+
+
+
+@media (max-width: 768px) {
+  .perfilContenido {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -102,8 +323,63 @@
     padding: 15px;
   }
 
-  .perfilGrid,
-  .statsGrid {
-    grid-template-columns: 1fr;
+  .perfilHeader {
+    padding: 35px 20px;
+  }
+
+  .perfilAvatar {
+    width: 110px;
+    height: 110px;
+    border-width: 4px;
+  }
+
+  .avatarIcon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .avatarUploadIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .perfilHeader h1 {
+    font-size: 2rem;
+    text-align: center;
+      word-break: break-word;
+  }
+
+  .estado {
+    padding: 8px 20px;
+    font-size: 0.9rem;
+  }
+    .bubble1 {
+    width: 180px;
+    height: 180px;
+    top: -70px;
+    left: -70px;
+  }
+
+  .bubble2 {
+    width: 130px;
+    height: 130px;
+    top: 60px;
+    left: -30px;
+  }
+
+  .bubble3 {
+    width: 100px;
+    height: 100px;
+    top: 180px;
+    right: 30px;
+  }
+
+  .bubble4 {
+    width: 170px;
+    height: 170px;
+    bottom: -80px;
+    right: -60px;
   }
 }
+
+
