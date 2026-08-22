@@ -36,7 +36,7 @@ export default function DomiciliarioDashboard() {
   const [domicilioSeleccionado, setDomicilioSeleccionado] = useState(null);
   const [vistaActual, setVistaActual] = useState("inicio");
   const [clienteNoEncontrado, setClienteNoEncontrado] = useState(false);
-  const usuario = JSON.parse(localStorage.getItem("usuario"));
+  const usuario = JSON.parse(sessionStorage.getItem("usuario"));
   const [mostrarImagen, setMostrarImagen] = useState(false);
   const [modoOscuro, setModoOscuro] = useState(
     localStorage.getItem("modoOscuro") === "true",
@@ -90,9 +90,11 @@ export default function DomiciliarioDashboard() {
       supabase.removeChannel(canal);
     };
   }, [usuario?.id]);
-  useEffect(() => {
-    cargarDomicilios();
-  }, []);
+useEffect(() => {
+  if (!usuario?.id) return;
+
+  cargarDomicilios();
+}, [usuario?.id]);
   const guardarDomicilio = async (e) => {
     e.preventDefault();
     setSubmitted(true);
@@ -192,17 +194,22 @@ export default function DomiciliarioDashboard() {
     setError("");
   };
 
-  const cargarDomicilios = async () => {
-    const { data, error } = await supabase
-      .from("domicilios")
-      .select("*")
-      .order("id", { ascending: false });
+const cargarDomicilios = async () => {
+  if (!usuario?.id) return;
 
-    if (!error) {
-      setDomicilios(data);
-    }
-  };
+  const { data, error } = await supabase
+    .from("domicilios")
+    .select("*")
+    .eq("domiciliario_id", usuario.id)
+    .order("id", { ascending: false });
 
+  if (error) {
+    console.error("Error cargando domicilios:", error);
+    return;
+  }
+
+  setDomicilios(data || []);
+};
   const confirmarReporte = async () => {
     const nuevoEstado =
       reporteData.motivo === "Cliente canceló" ? "Cancelado" : "Reportado";

@@ -40,7 +40,7 @@ function Login() {
 
       const { usuario } = await login(documento, password);
 
-      localStorage.setItem("usuario", JSON.stringify(usuario));
+   sessionStorage.setItem("usuario", JSON.stringify(usuario));
 
       Swal.fire({
         icon: "success",
