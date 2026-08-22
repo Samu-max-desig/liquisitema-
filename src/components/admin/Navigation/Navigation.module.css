@@ -1,0 +1,99 @@
+.navigation {
+  width: 100%;
+
+  position: fixed;
+  top: 92px;
+  left: 0;
+  z-index: 999;
+
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.navContainer {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 30px;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.navContainer::-webkit-scrollbar {
+  height: 5px;
+}
+
+.navContainer::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.navItem {
+  position: relative;
+
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 17px 15px 15px;
+
+  border: none;
+  background: transparent;
+
+  color: #64748b;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.navItem:hover {
+  color: #2563eb;
+  background: #f8fafc;
+}
+
+.icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+
+.active {
+  color: #2563eb;
+}
+
+.active::after {
+  content: "";
+
+  position: absolute;
+
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+
+  height: 3px;
+
+  background: #2563eb;
+  border-radius: 3px 3px 0 0;
+}
+
+@media (max-width: 900px) {
+  .navContainer {
+    padding: 0 15px;
+  }
+
+  .navItem {
+    padding: 15px 12px 13px;
+    font-size: 13px;
+  }
+}

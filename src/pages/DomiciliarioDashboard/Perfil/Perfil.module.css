@@ -309,7 +309,132 @@ background: rgba(59, 130, 246, 0.18);
     #60a5fa
   );
 }
+/* =========================================
+   MODO OSCURO - PERFIL
+========================================= */
 
+:global(body.modo-oscuro) .perfilContainer {
+  background: #0f172a;
+}
+
+:global(body.modo-oscuro) .perfilHeader {
+  background: #111827;
+  border-color: #334155;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+:global(body.modo-oscuro) .perfilHeader h1 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .datosCard {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+:global(body.modo-oscuro) .datosCard h2 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .datoItem {
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .datoItem span {
+  color: #94a3b8;
+}
+
+:global(body.modo-oscuro) .datoItem p {
+  color: #f1f5f9;
+}
+
+:global(body.modo-oscuro) .resumenCard {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+:global(body.modo-oscuro) .resumenCard span {
+  color: #94a3b8;
+}
+
+:global(body.modo-oscuro) .resumenCard h3 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .graficaCard {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+:global(body.modo-oscuro) .graficaCard h3 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .barraItem > span {
+  color: #cbd5e1;
+}
+
+/* ==========================================
+   MODO OSCURO - PERFIL
+========================================== */
+
+:global(body.modo-oscuro) .perfilContainer {
+  background: #0f172a;
+}
+
+/* Datos personales */
+:global(body.modo-oscuro) .datosCard {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+}
+
+:global(body.modo-oscuro) .datosCard h2 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .datoItem {
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .datoItem span {
+  color: #94a3b8;
+}
+
+:global(body.modo-oscuro) .datoItem p {
+  color: #f8fafc;
+}
+
+/* Tarjetas resumen */
+:global(body.modo-oscuro) .resumenCard {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .resumenCard span {
+  color: #94a3b8;
+}
+
+:global(body.modo-oscuro) .resumenCard h3 {
+  color: #f8fafc;
+}
+
+/* Gráfica */
+:global(body.modo-oscuro) .graficaCard {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .graficaCard h3 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .barraItem > span {
+  color: #cbd5e1;
+}
 
 
 @media (max-width: 768px) {

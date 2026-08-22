@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "../pages/Login/Login";
-import AdminDashboard from "../pages/AdminDashboard/AdminDashboard";
+import AdminDashboard from "../pages/AdministradorPrincipal/AdminDashboard/AdminDashboard";
 import DomiciliarioDashboard from "../pages/DomiciliarioDashboard/DomiciliarioDashboard";
 
 function AppRoutes() {

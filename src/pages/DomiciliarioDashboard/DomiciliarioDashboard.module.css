@@ -1101,3 +1101,278 @@
     transform: scale(1);
   }
 }
+
+/* ========================================
+   MODO OSCURO
+======================================== */
+
+.modoOscuro {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.modoOscuro .lqPerfilContainer {
+  background: #0f172a;
+}
+
+/* Buscador */
+.modoOscuro .lqSearchContainer {
+  background: #1e293b;
+}
+
+.modoOscuro .lqSearchContainer input {
+  background: transparent;
+  color: #f8fafc;
+}
+
+.modoOscuro .lqSearchContainer input::placeholder {
+  color: #94a3b8;
+}
+
+/* Estadísticas */
+.modoOscuro .lqStatsBar {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.modoOscuro .lqStatsItem span {
+  color: #94a3b8;
+}
+
+.modoOscuro .lqStatsItem strong {
+  color: #f8fafc;
+}
+
+.modoOscuro .lqStatsItem:not(:last-child)::after {
+  background: #334155;
+}
+
+/* Formulario e historial */
+.modoOscuro .lqFormCard,
+.modoOscuro .lqHistoryCard {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+/* Títulos */
+.modoOscuro .lqFormCard h2,
+.modoOscuro .lqHistoryCard h2 {
+  color: #f8fafc;
+}
+
+/* Inputs */
+.modoOscuro .lqForm input,
+.modoOscuro .lqForm select,
+.modoOscuro .lqForm textarea {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+.modoOscuro .lqForm input::placeholder,
+.modoOscuro .lqForm textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* Select */
+.modoOscuro .lqForm select {
+  color: #f8fafc;
+}
+
+/* Tabla */
+.modoOscuro .lqHistoryCard th,
+.modoOscuro .lqHistoryCard td {
+  border-bottom-color: #334155;
+  color: #e2e8f0;
+}
+
+/* Cliente encontrado */
+.modoOscuro .lqClienteCard {
+  background: #1e293b;
+}
+
+.modoOscuro .lqClienteHeader h3 {
+  color: #f8fafc;
+}
+
+.modoOscuro .lqClienteHeader span,
+.modoOscuro .lqClienteInfo p {
+  color: #cbd5e1;
+}
+
+/* Cliente no encontrado */
+.modoOscuro .lqClienteNoEncontrado {
+  background: #292524;
+}
+
+.modoOscuro .lqClienteNoEncontrado p {
+  color: #d6d3d1;
+}
+
+/* Modal */
+.modoOscuro .lqModal {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+.modoOscuro .lqModal h2 {
+  color: #f8fafc;
+}
+
+.modoOscuro .lqModalText {
+  color: #cbd5e1;
+}
+
+.modoOscuro .lqModal select,
+.modoOscuro .lqModal textarea {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+.modoOscuro .lqModalCancel {
+  background: #334155;
+  color: #f8fafc;
+  border-color: #475569;
+}
+
+.modoOscuro .lqModalCancel:hover {
+  background: #475569;
+}
+
+/* Bottom sheet */
+.modoOscuro .lqBottomSheet {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+.modoOscuro .lqSheetButton {
+  background: #334155;
+  color: #f8fafc;
+}
+
+.modoOscuro .lqSheetButton:hover {
+  background: #475569;
+}
+
+/* Modal imagen */
+.modoOscuro .lqImageModal {
+  background: #1e293b;
+}
+
+/* ==========================================
+   MODO OSCURO - INICIO
+========================================== */
+
+:global(body.modo-oscuro) .lqDashboard {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+/* Buscador */
+:global(body.modo-oscuro) .lqSearchContainer {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .lqSearchContainer input {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .lqSearchContainer input::placeholder {
+  color: #94a3b8;
+}
+
+/* Estadísticas */
+:global(body.modo-oscuro) .lqStatsBar {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .lqStatsItem {
+  background: #1e293b;
+}
+
+:global(body.modo-oscuro) .lqStatsItem span {
+  color: #94a3b8;
+}
+
+:global(body.modo-oscuro) .lqStatsItem strong {
+  color: #f8fafc;
+}
+
+/* Nuevo domicilio */
+:global(body.modo-oscuro) .lqFormCard {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .lqFormCard h2 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .lqForm input,
+:global(body.modo-oscuro) .lqForm select,
+:global(body.modo-oscuro) .lqForm textarea {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .lqForm input::placeholder,
+:global(body.modo-oscuro) .lqForm textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* Historial */
+:global(body.modo-oscuro) .lqHistoryCard {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .lqHistoryCard h2 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .lqHistoryCard th,
+:global(body.modo-oscuro) .lqHistoryCard td {
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+/* Cliente */
+:global(body.modo-oscuro) .lqClienteCard {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(body.modo-oscuro) .lqClienteHeader h3 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .lqClienteHeader span,
+:global(body.modo-oscuro) .lqClienteInfo p {
+  color: #cbd5e1;
+}
+
+/* Modal */
+:global(body.modo-oscuro) .lqModal {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .lqModal h2 {
+  color: #f8fafc;
+}
+
+:global(body.modo-oscuro) .lqModalText {
+  color: #cbd5e1;
+}
+
+:global(body.modo-oscuro) .lqModal input,
+:global(body.modo-oscuro) .lqModal select,
+:global(body.modo-oscuro) .lqModal textarea {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #334155;
+}

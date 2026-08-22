@@ -1,5 +1,6 @@
 import styles from "./DomiciliarioDashboard.module.css";
 import { useState, useEffect } from "react";
+import { reproducirNotificacion } from "../../services/notificacionesService";
 import {
   HomeIcon,
   UserIcon,
@@ -37,7 +38,17 @@ export default function DomiciliarioDashboard() {
   const [clienteNoEncontrado, setClienteNoEncontrado] = useState(false);
   const usuario = JSON.parse(localStorage.getItem("usuario"));
   const [mostrarImagen, setMostrarImagen] = useState(false);
+  const [modoOscuro, setModoOscuro] = useState(
+    localStorage.getItem("modoOscuro") === "true",
+  );
+  useEffect(() => {
+    document.body.classList.toggle("modo-oscuro", modoOscuro);
+    localStorage.setItem("modoOscuro", modoOscuro);
 
+    return () => {
+      document.body.classList.remove("modo-oscuro");
+    };
+  }, [modoOscuro]);
   const [reporteData, setReporteData] = useState({
     motivo: "",
     observaciones: "",
@@ -51,6 +62,34 @@ export default function DomiciliarioDashboard() {
     metodo_pago: "",
     observaciones: "",
   });
+  useEffect(() => {
+    if (!usuario?.id) return;
+
+    const canal = supabase
+      .channel(`domicilios-${usuario.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "domicilios",
+          filter: `domiciliario_id=eq.${usuario.id}`,
+        },
+        async (payload) => {
+          const nuevoEstado = payload.new?.estado;
+          const estadoAnterior = payload.old?.estado;
+
+          if (nuevoEstado && nuevoEstado !== estadoAnterior) {
+            await reproducirNotificacion(usuario.id);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [usuario?.id]);
   useEffect(() => {
     cargarDomicilios();
   }, []);
@@ -243,6 +282,7 @@ export default function DomiciliarioDashboard() {
       (d) => d.estado === "Reportado",
     ).length;
 
+    // Guardar el cierre
     const { error: cierreError } = await supabase.from("cierres_dia").insert([
       {
         total_domicilios: totalDomicilios,
@@ -256,16 +296,34 @@ export default function DomiciliarioDashboard() {
 
     if (cierreError) {
       console.error(cierreError);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo realizar el cierre del día.",
+      });
+
       return;
     }
 
+    // Cerrar el modal ANTES de borrar los domicilios
+    setModalCerrarDia(false);
+
+    // Borrar solamente los domicilios de este domiciliario
     const { error: deleteError } = await supabase
       .from("domicilios")
       .delete()
-      .gt("id", 0);
+      .eq("domiciliario_id", usuario.id);
 
     if (deleteError) {
       console.error(deleteError);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "El cierre se guardó, pero no se pudieron limpiar los domicilios.",
+      });
+
       return;
     }
 
@@ -414,7 +472,9 @@ export default function DomiciliarioDashboard() {
     e.target.value = "";
   };
   return (
-    <div className={styles.lqDashboard}>
+    <div
+      className={`${styles.lqDashboard} ${modoOscuro ? styles.modoOscuro : ""}`}
+    >
       <aside
         className={`${styles.lqSidebar} ${
           menuOpen ? styles.lqSidebarOpen : ""
@@ -765,7 +825,10 @@ export default function DomiciliarioDashboard() {
       )}
       {vistaActual === "configuracion" && (
         <div className={styles.lqPerfilContainer}>
-          <Configuracion />
+          <Configuracion
+            modoOscuro={modoOscuro}
+            setModoOscuro={setModoOscuro}
+          />
         </div>
       )}
       {mostrarComprobante && (
