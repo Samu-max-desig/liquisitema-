@@ -1,0 +1,943 @@
+/* =========================================
+   CONTENEDOR PRINCIPAL
+========================================= */
+
+.usuarios {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding-top: 22px;
+  padding-bottom: 40px;
+  box-sizing: border-box;
+}
+
+/* =========================================
+   ENCABEZADO
+========================================= */
+
+.usuariosHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.usuariosHeader h1 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+}
+
+.usuariosHeader p {
+  margin: 5px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+}
+
+/* =========================================
+   ESTADÍSTICAS
+========================================= */
+
+.usuariosStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  margin-bottom: 18px;
+}
+
+.usuariosStatCard {
+  min-height: 105px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 15px;
+  padding: 18px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  box-sizing: border-box;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.usuariosStatCard:hover {
+  transform: translateY(-2px);
+
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.07);
+}
+
+.usuariosStatIcon {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #eff6ff;
+
+  color: #2563eb;
+
+  border-radius: 13px;
+
+  flex-shrink: 0;
+}
+
+.usuariosStatIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.usuariosStatCard span {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: #64748b;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.usuariosStatCard strong {
+  display: block;
+
+  color: #0f172a;
+
+  font-size: 25px;
+  font-weight: 750;
+}
+
+/* =========================================
+   PANEL DE USUARIOS
+========================================= */
+
+.usuariosPanel {
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  padding: 20px;
+
+  box-sizing: border-box;
+}
+
+.usuariosPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  margin-bottom: 18px;
+}
+
+.usuariosPanelHeader h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.usuariosPanelHeader p {
+  margin: 4px 0 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+/* =========================================
+   BUSCADOR
+========================================= */
+
+.usuariosBuscador {
+  width: 100%;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 0 14px;
+
+  margin-bottom: 18px;
+
+  background: #f8fafc;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+
+  box-sizing: border-box;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.usuariosBuscador:focus-within {
+  background: #ffffff;
+
+  border-color: #93c5fd;
+
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.usuariosBuscador svg {
+  width: 20px;
+  height: 20px;
+
+  color: #94a3b8;
+
+  flex-shrink: 0;
+}
+
+.usuariosBuscador input {
+  width: 100%;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  color: #0f172a;
+
+  font-size: 14px;
+}
+
+.usuariosBuscador input::placeholder {
+  color: #94a3b8;
+}
+
+/* =========================================
+   TABLA
+========================================= */
+
+.usuariosTablaContainer {
+  width: 100%;
+
+  overflow-x: auto;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.usuariosTabla {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  min-width: 850px;
+}
+
+.usuariosTabla thead {
+  background: #f8fafc;
+}
+
+.usuariosTabla th {
+  padding: 13px 16px;
+
+  color: #64748b;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  text-align: left;
+
+  white-space: nowrap;
+
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.usuariosTabla td {
+  padding: 15px 16px;
+
+  color: #334155;
+
+  font-size: 13px;
+
+  border-bottom: 1px solid #f1f5f9;
+
+  vertical-align: middle;
+}
+
+.usuariosTabla tbody tr {
+  transition: background 0.15s ease;
+}
+
+.usuariosTabla tbody tr:hover {
+  background: #f8fafc;
+}
+
+.usuariosTabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* =========================================
+   INFORMACIÓN DEL USUARIO
+========================================= */
+
+.usuariosNombre {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.usuariosNombre strong {
+  color: #0f172a;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.usuariosNombre span {
+  color: #64748b;
+
+  font-size: 12px;
+}
+
+/* =========================================
+   ROL
+========================================= */
+
+.usuariosRol {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 5px 9px;
+
+  border-radius: 7px;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.usuariosRolAdmin {
+  background: #eff6ff;
+
+  color: #2563eb;
+}
+
+.usuariosRolDomiciliario {
+  background: #f1f5f9;
+
+  color: #475569;
+}
+
+/* =========================================
+   ESTADO
+========================================= */
+
+.usuariosEstado {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  padding: 5px 9px;
+
+  border-radius: 7px;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.usuariosEstado span {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+}
+
+.usuariosEstadoActivo {
+  background: #f0fdf4;
+
+  color: #15803d;
+}
+
+.usuariosEstadoActivo span {
+  background: #22c55e;
+}
+
+.usuariosEstadoInactivo {
+  background: #fef2f2;
+
+  color: #dc2626;
+}
+
+.usuariosEstadoInactivo span {
+  background: #ef4444;
+}
+
+/* =========================================
+   ESTADO VACÍO / CARGANDO
+========================================= */
+
+.usuariosVacio {
+  padding: 40px 20px !important;
+
+  color: #94a3b8 !important;
+
+  text-align: center !important;
+
+  font-size: 14px !important;
+}
+
+/* =========================================
+   BOTÓN NUEVO USUARIO
+========================================= */
+
+.usuariosNuevoButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 11px 16px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: #2563eb;
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.usuariosNuevoButton:hover {
+  background: #1d4ed8;
+
+  transform: translateY(-1px);
+
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+}
+
+.usuariosNuevoButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* =========================================
+   MODAL
+========================================= */
+
+.usuariosModalOverlay {
+  position: fixed;
+  inset: 0;
+
+  z-index: 2000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.45);
+
+  backdrop-filter: blur(3px);
+
+  box-sizing: border-box;
+}
+
+.usuariosModal {
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(100vh - 40px);
+
+  overflow-y: auto;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+
+.usuariosModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  padding: 22px 24px;
+
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.usuariosModalHeader h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.usuariosModalHeader p {
+  margin: 5px 0 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+.usuariosModalCerrar {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+
+  background: #f8fafc;
+  color: #64748b;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.usuariosModalCerrar:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.usuariosModalCerrar svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* =========================================
+   FORMULARIO
+========================================= */
+
+.usuariosFormulario {
+  padding: 22px 24px 24px;
+}
+
+.usuariosFormularioGrid {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 16px;
+}
+
+.usuariosCampo {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+.usuariosCampoCompleto {
+  grid-column: 1 / -1;
+}
+
+.usuariosCampo label {
+  color: #334155;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.usuariosCampo input,
+.usuariosCampo select {
+  width: 100%;
+  height: 44px;
+
+  padding: 0 12px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+
+  outline: none;
+
+  background: #f8fafc;
+  color: #0f172a;
+
+  font-family: inherit;
+  font-size: 13px;
+
+  box-sizing: border-box;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.usuariosCampo input:focus,
+.usuariosCampo select:focus {
+  background: #ffffff;
+
+  border-color: #93c5fd;
+
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.usuariosCampo input::placeholder {
+  color: #94a3b8;
+}
+
+/* =========================================
+   MENSAJES
+========================================= */
+
+.usuariosMensaje {
+  margin-top: 18px;
+
+  padding: 11px 13px;
+
+  border-radius: 9px;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.usuariosMensajeError {
+  background: #fef2f2;
+  color: #dc2626;
+
+  border: 1px solid #fecaca;
+}
+
+.usuariosMensajeExito {
+  background: #f0fdf4;
+  color: #15803d;
+
+  border: 1px solid #bbf7d0;
+}
+
+/* =========================================
+   ACCIONES DEL FORMULARIO
+========================================= */
+
+.usuariosFormularioAcciones {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  margin-top: 22px;
+}
+
+.usuariosCancelarButton,
+.usuariosCrearButton {
+  min-height: 42px;
+
+  padding: 0 16px;
+
+  border-radius: 9px;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.usuariosCancelarButton {
+  border: 1px solid #e2e8f0;
+
+  background: #ffffff;
+  color: #475569;
+}
+
+.usuariosCancelarButton:hover {
+  background: #f8fafc;
+}
+
+.usuariosCrearButton {
+  border: 1px solid #2563eb;
+
+  background: #2563eb;
+  color: #ffffff;
+
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.16);
+}
+
+.usuariosCrearButton:hover {
+  background: #1d4ed8;
+
+  transform: translateY(-1px);
+}
+
+.usuariosCancelarButton:disabled,
+.usuariosCrearButton:disabled,
+.usuariosModalCerrar:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+/* ================================
+   BOTÓN EDITAR USUARIO
+================================ */
+
+.usuariosEditarButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  padding: 8px 12px;
+
+  border: 1px solid #dbe5f3;
+  border-radius: 8px;
+
+  background: #f7faff;
+  color: #2563eb;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.usuariosEditarButton svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.usuariosEditarButton:hover {
+  background: #eef5ff;
+  border-color: #bfd4f5;
+  color: #1d4ed8;
+}
+
+.usuariosEditarButton:active {
+  transform: scale(0.97);
+}
+
+.usuariosEditarButton:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.15);
+  outline-offset: 2px;
+}
+
+
+/* ================================
+   COLUMNA DE ACCIONES
+================================ */
+
+.usuariosTabla th:last-child,
+.usuariosTabla td:last-child {
+  width: 120px;
+  text-align: center;
+}
+
+
+/* ================================
+   AJUSTE DEL MODAL DE EDICIÓN
+================================ */
+
+.usuariosModal input,
+.usuariosModal select {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.usuariosModal input:focus,
+.usuariosModal select:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+}
+
+
+/* ================================
+   BOTÓN GUARDAR CAMBIOS
+================================ */
+
+.usuariosCrearButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+
+/* ================================
+   RESPONSIVE
+================================ */
+
+@media (max-width: 800px) {
+  .usuariosTabla th:last-child,
+  .usuariosTabla td:last-child {
+    width: 100px;
+  }
+
+  .usuariosEditarButton {
+    padding: 7px 9px;
+  }
+
+  .usuariosEditarButton svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+/* =========================================
+   RESPONSIVE MODAL
+========================================= */
+
+@media (max-width: 700px) {
+  .usuariosHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .usuariosNuevoButton {
+    width: 100%;
+  }
+
+  .usuariosFormularioGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .usuariosCampoCompleto {
+    grid-column: auto;
+  }
+
+  .usuariosModalOverlay {
+    align-items: flex-start;
+
+    padding: 12px;
+  }
+
+  .usuariosModalHeader {
+    padding: 18px;
+  }
+
+  .usuariosFormulario {
+    padding: 18px;
+  }
+
+  .usuariosFormularioAcciones {
+    flex-direction: column-reverse;
+  }
+
+  .usuariosCancelarButton,
+  .usuariosCrearButton {
+    width: 100%;
+  }
+}
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 1100px) {
+  .usuariosStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .usuarios {
+    padding-top: 16px;
+    padding-bottom: 30px;
+  }
+
+  .usuariosHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .usuariosHeader h1 {
+    font-size: 27px;
+  }
+
+  .usuariosStats {
+    grid-template-columns: 1fr 1fr;
+
+    gap: 10px;
+  }
+
+  .usuariosStatCard {
+    min-height: 95px;
+
+    padding: 13px;
+
+    gap: 10px;
+  }
+
+  .usuariosStatIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .usuariosStatIcon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .usuariosStatCard strong {
+    font-size: 20px;
+  }
+
+  .usuariosPanel {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 450px) {
+  .usuariosStats {
+    grid-template-columns: 1fr;
+  }
+
+  .usuariosHeader h1 {
+    font-size: 25px;
+  }
+}

@@ -1,0 +1,124 @@
+.header {
+  width: 100%;
+  min-height: 92px;
+  padding: 18px 40px;
+position: fixed;
+top: 0;
+left: 0;
+z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+
+  box-sizing: border-box;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.brand span {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.actionButton {
+  position: relative;
+
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+
+  background: #f8fafc;
+  color: #334155;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.actionButton:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.actionButton svg {
+  width: 21px;
+  height: 21px;
+}
+
+.notificationDot {
+  position: absolute;
+
+  top: 7px;
+  right: 7px;
+
+  width: 7px;
+  height: 7px;
+
+  background: #ef4444;
+  border: 2px solid #f8fafc;
+
+  border-radius: 50%;
+}
+
+@media (max-width: 700px) {
+  .header {
+    min-height: 76px;
+    padding: 14px 18px;
+  }
+
+  .brand h1 {
+    font-size: 23px;
+  }
+
+  .brand span {
+    font-size: 12px;
+  }
+
+  .actions {
+    gap: 6px;
+  }
+
+  .actionButton {
+    width: 38px;
+    height: 38px;
+  }
+
+  .actionButton svg {
+    width: 19px;
+    height: 19px;
+  }
+}

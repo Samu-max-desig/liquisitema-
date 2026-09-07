@@ -1,0 +1,930 @@
+.adminInicio {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding-top: 22px;
+}
+
+/* =========================
+   ENCABEZADO
+========================= */
+
+.adminInicioHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  margin-bottom: 22px;
+}
+
+.adminInicioHeader h1 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 32px;
+  font-weight: 750;
+}
+
+.adminInicioHeader p {
+  margin: 5px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+}
+
+.adminInicioFecha {
+  color: #64748b;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  text-transform: capitalize;
+}
+
+/* =========================
+   ESTADÍSTICAS
+========================= */
+
+.adminInicioStats {
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 16px;
+
+  margin-bottom: 18px;
+}
+
+.adminInicioStatCard {
+  min-height: 105px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 15px;
+
+  padding: 18px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  box-sizing: border-box;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.adminInicioStatCard:hover {
+  transform: translateY(-2px);
+
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.07);
+}
+
+.adminInicioStatIcon {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #eff6ff;
+
+  color: #2563eb;
+
+  border-radius: 13px;
+
+  flex-shrink: 0;
+}
+
+.adminInicioStatIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.adminInicioStatCard span {
+  display: block;
+
+  color: #64748b;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  margin-bottom: 4px;
+}
+
+.adminInicioStatCard strong {
+  display: block;
+
+  color: #0f172a;
+
+  font-size: 25px;
+  font-weight: 750;
+}
+
+/* =========================
+   GRID CENTRAL
+========================= */
+
+.adminInicioGrid {
+  display: grid;
+
+  grid-template-columns: 1.5fr 1fr;
+
+  gap: 18px;
+
+  margin-bottom: 18px;
+}
+
+.adminInicioPanel {
+  min-height: 190px;
+
+  padding: 20px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  box-sizing: border-box;
+}
+
+.adminInicioPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  margin-bottom: 18px;
+}
+
+.adminInicioPanelHeader h2,
+.adminInicioResumenHeader h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.adminInicioPanelHeader p,
+.adminInicioResumenHeader p {
+  margin: 4px 0 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+.adminInicioPanelHeader > svg {
+  width: 21px;
+  height: 21px;
+
+  color: #2563eb;
+}
+
+/* =========================
+   ACTIVIDAD
+========================= */
+
+.adminInicioActivity {
+  display: flex;
+  flex-direction: column;
+
+  gap: 14px;
+}
+
+.adminInicioActivityItem {
+  display: grid;
+
+  grid-template-columns: 9px 1fr auto;
+
+  align-items: center;
+
+  gap: 12px;
+}
+
+.adminInicioActivityDot {
+  width: 8px;
+  height: 8px;
+
+  background: #2563eb;
+
+  border-radius: 50%;
+}
+
+.adminInicioActivityItem strong {
+  display: block;
+
+  color: #334155;
+
+  font-size: 13px;
+}
+
+.adminInicioActivityItem span {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #64748b;
+
+  font-size: 12px;
+}
+
+.adminInicioActivityItem small {
+  color: #94a3b8;
+
+  font-size: 11px;
+}
+
+/* =========================
+   DOMICILIARIOS
+========================= */
+
+.adminInicioDomiciliarios {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.adminInicioDomiciliarioTotal strong {
+  display: block;
+
+  color: #2563eb;
+
+  font-size: 38px;
+  font-weight: 750;
+}
+
+.adminInicioDomiciliarioTotal span {
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+.adminInicioEstado {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  padding: 8px 11px;
+
+  background: #f0fdf4;
+
+  color: #15803d;
+
+  border-radius: 9px;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.adminInicioEstadoPunto {
+  width: 7px;
+  height: 7px;
+
+  background: #22c55e;
+
+  border-radius: 50%;
+}
+
+/* =========================
+   RESUMEN DEL DÍA
+========================= */
+
+.adminInicioResumen {
+  padding: 20px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+}
+
+.adminInicioResumenHeader {
+  margin-bottom: 17px;
+}
+
+.adminInicioPagos {
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 12px;
+}
+
+.adminInicioPago {
+  padding: 15px;
+
+  background: #f8fafc;
+
+  border-radius: 12px;
+
+  border: 1px solid #e2e8f0;
+}
+
+.adminInicioPago span {
+  display: block;
+
+  color: #64748b;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  margin-bottom: 5px;
+}
+
+.adminInicioPago strong {
+  color: #0f172a;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+/* =========================
+   CARRUSEL DE GRÁFICAS
+========================= */
+
+.adminInicioGraficas {
+  margin-top: 18px;
+  padding: 20px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  box-sizing: border-box;
+}
+
+.adminInicioGraficasHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 18px;
+}
+
+.adminInicioGraficasHeader h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.adminInicioGraficasHeader p {
+  margin: 4px 0 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+.adminInicioGraficasControles {
+  display: flex;
+  gap: 8px;
+}
+
+.adminInicioGraficasControles button {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+
+  background: #eff6ff;
+  color: #2563eb;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.adminInicioGraficasControles button:hover {
+  background: #2563eb;
+  color: #ffffff;
+
+  transform: translateY(-1px);
+}
+
+.adminInicioGraficasControles svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* =========================
+   GRÁFICA
+========================= */
+
+.adminInicioGrafica {
+  height: 210px;
+
+  display: flex;
+  align-items: stretch;
+
+  gap: 18px;
+
+  padding: 10px 10px 0;
+
+  border-bottom: 1px solid #e2e8f0;
+
+  box-sizing: border-box;
+}
+
+.adminInicioGraficaColumna {
+  flex: 1;
+
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 7px;
+}
+
+.adminInicioGraficaColumna strong {
+  color: #2563eb;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.adminInicioGraficaBarraContenedor {
+  width: 100%;
+  max-width: 55px;
+
+  height: 145px;
+
+  display: flex;
+  align-items: flex-end;
+
+  background: #eff6ff;
+
+  border-radius: 9px 9px 3px 3px;
+
+  overflow: hidden;
+}
+
+.adminInicioGraficaBarra {
+  width: 100%;
+
+  min-height: 4px;
+
+  background: #2563eb;
+
+  border-radius: 8px 8px 2px 2px;
+
+  transition: height 0.5s ease;
+}
+
+.adminInicioGraficaColumna span {
+  color: #64748b;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+/* =========================
+   PUNTOS
+========================= */
+
+.adminInicioGraficasPuntos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  padding-top: 15px;
+}
+
+.adminInicioGraficaPunto,
+.adminInicioGraficaPuntoActivo {
+  width: 7px;
+  height: 7px;
+
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #cbd5e1;
+
+  cursor: pointer;
+
+  transition:
+    width 0.2s ease,
+    background 0.2s ease;
+}
+
+.adminInicioGraficaPuntoActivo {
+  width: 22px;
+
+  background: #2563eb;
+
+  border-radius: 10px;
+}
+
+/* =========================
+   ANÁLISIS + INGRESOS
+========================= */
+
+.adminInicioAnalisis {
+  width: 100%;
+
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+
+  gap: 18px;
+
+  margin-top: 18px;
+}
+
+/* Quitamos el margen propio de la gráfica
+   porque ahora lo controla el contenedor */
+
+.adminInicioAnalisis .adminInicioGraficas {
+  margin-top: 0;
+}
+
+/* =========================
+   BLOQUE DE INGRESOS
+========================= */
+
+.adminInicioIngresos {
+  padding: 20px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  box-sizing: border-box;
+}
+
+.adminInicioIngresos h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.adminInicioIngresos p {
+  margin: 4px 0 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+/* =========================
+   INGRESOS
+========================= */
+
+.adminInicioIngresos {
+  padding: 20px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  box-sizing: border-box;
+}
+
+.adminInicioIngresos h2 {
+  margin: 0;
+
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.adminInicioIngresos > p {
+  margin: 4px 0 18px;
+
+  color: #64748b;
+  font-size: 13px;
+}
+
+.adminInicioIngresosLista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adminInicioIngresosLista > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 13px 14px;
+
+  background: #f8fafc;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+}
+
+.adminInicioIngresosLista span {
+  color: #64748b;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.adminInicioIngresosLista strong {
+  color: #2563eb;
+
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.adminInicioClave {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.adminInicioClave span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.adminInicioClaveBox {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 86px;
+  height: 32px;
+
+  padding: 0 10px;
+
+  background: #eff6ff;
+
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.adminInicioClaveBox strong {
+  position: relative;
+  z-index: 2;
+
+  color: #2563eb;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  letter-spacing: 2px;
+}
+
+/* Línea que recorre el borde */
+
+
+.adminInicioClaveBox {
+  position: relative;
+
+  min-width: 86px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 10px;
+
+  background: #eff6ff;
+
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.adminInicioClaveBox strong {
+  position: relative;
+  z-index: 3;
+
+  color: #2563eb;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  letter-spacing: 2px;
+}
+
+.adminInicioClaveSvg {
+  position: absolute;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  pointer-events: none;
+}
+
+.adminInicioClaveRastro {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2;
+  stroke-linecap: round;
+
+  stroke-dasharray: 18 82;
+
+  animation: recorrerClave 60s linear infinite;
+  animation-delay: var(--clave-offset);
+}
+
+@keyframes recorrerClave {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1000px) {
+  .adminInicioAnalisis {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .adminInicioAnalisis {
+    gap: 12px;
+  }
+}
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 700px) {
+  .adminInicioGraficas {
+    padding: 16px;
+  }
+
+  .adminInicioGraficasHeader h2 {
+    font-size: 16px;
+  }
+
+  .adminInicioGraficasHeader p {
+    font-size: 12px;
+  }
+
+  .adminInicioGraficasControles button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .adminInicioGrafica {
+    height: 190px;
+
+    gap: 8px;
+
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .adminInicioGraficaBarraContenedor {
+    max-width: 35px;
+    height: 125px;
+  }
+}
+
+@media (max-width: 450px) {
+  .adminInicioGraficasHeader {
+    align-items: flex-start;
+  }
+
+  .adminInicioGraficasHeader p {
+    max-width: 190px;
+  }
+
+  .adminInicioGrafica {
+    gap: 5px;
+  }
+
+  .adminInicioGraficaColumna strong {
+    font-size: 10px;
+  }
+
+  .adminInicioGraficaColumna span {
+    font-size: 9px;
+  }
+}
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+  .adminInicioStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .adminInicioGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminInicioPagos {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .adminInicio {
+    padding-top: 16px;
+  }
+
+  .adminInicioHeader {
+    align-items: flex-start;
+
+    flex-direction: column;
+
+    gap: 8px;
+  }
+
+  .adminInicioHeader h1 {
+    font-size: 27px;
+  }
+
+  .adminInicioStats {
+    grid-template-columns: 1fr 1fr;
+
+    gap: 10px;
+  }
+
+  .adminInicioStatCard {
+    min-height: 95px;
+
+    padding: 13px;
+
+    gap: 10px;
+  }
+
+  .adminInicioStatIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .adminInicioStatIcon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .adminInicioStatCard strong {
+    font-size: 20px;
+  }
+
+  .adminInicioPagos {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 450px) {
+  .adminInicioStats {
+    grid-template-columns: 1fr;
+  }
+
+  .adminInicioPagos {
+    grid-template-columns: 1fr;
+  }
+
+  .adminInicioDomiciliarios {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+}

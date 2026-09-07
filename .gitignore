@@ -1,0 +1,49 @@
+# =========================================================
+# LIQUISISTEMA - GITIGNORE
+# =========================================================
+
+# -------------------------
+# Frontend
+# -------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+
+# -------------------------
+# PyInstaller
+# -------------------------
+instalador/build/
+instalador/__pycache__/
+instalador/*.spec
+
+# Ejecutables generados
+instalador/dist/
+
+# -------------------------
+# Secretos
+# -------------------------
+.env
+.env.*
+!.env.example
+
+# Tokens / credenciales
+*secret*
+*token*
+*credentials*
+
+# -------------------------
+# Sistema
+# -------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
