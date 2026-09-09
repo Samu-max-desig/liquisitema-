@@ -6,11 +6,11 @@ import styles from "./Organizaciones.module.css";
 export default function Organizaciones() {
   const [organizaciones, setOrganizaciones] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const usuarioActual = JSON.parse(sessionStorage.getItem("usuario") || "null");
+
   const [mostrarModal, setMostrarModal] = useState(false);
   const [organizacionSeleccionada, setOrganizacionSeleccionada] =
     useState(null);
-
+  const [usuarioActual, setUsuarioActual] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
   const [formulario, setFormulario] = useState({
@@ -37,7 +37,7 @@ export default function Organizaciones() {
   useEffect(() => {
     const cargarUsuarioActual = async () => {
       try {
-        const usuarioGuardado = localStorage.getItem("usuario");
+        const usuarioGuardado = sessionStorage.getItem("usuario");
 
         if (!usuarioGuardado) {
           console.error("No hay usuario guardado.");

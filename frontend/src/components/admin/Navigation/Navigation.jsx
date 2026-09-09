@@ -10,6 +10,7 @@ import {
   ClipboardDocumentListIcon,
   ArchiveBoxIcon,
   PhotoIcon,
+  UserGroupIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 
@@ -64,11 +65,10 @@ const opciones = [
     icono: BuildingOffice2Icon,
   },
   {
-    id: "configuracion",
-    nombre: "Configuración",
-    icono: Cog6ToothIcon,
+    id: "clientes",
+    nombre: "Clientes",
+    icono: UserGroupIcon,
   },
-
 ];
 
 export default function Navigation({ seccionActiva, setSeccionActiva }) {
@@ -118,8 +118,9 @@ export default function Navigation({ seccionActiva, setSeccionActiva }) {
             <button
               key={opcion.id}
               type="button"
-              className={`${styles.navItem} ${seccionActiva === opcion.id ? styles.active : ""
-                }`}
+              className={`${styles.navItem} ${
+                seccionActiva === opcion.id ? styles.active : ""
+              }`}
               onClick={() => setSeccionActiva(opcion.id)}
             >
               <Icon className={styles.icon} />

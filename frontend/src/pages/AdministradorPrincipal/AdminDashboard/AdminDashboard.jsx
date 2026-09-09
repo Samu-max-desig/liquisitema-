@@ -13,7 +13,7 @@ import Reportes from "../Reportes/Reportes";
 import Actividad from "../Actividad/Actividad";
 import HistorialCierres from "../HistorialCierres/HistorialCierres";
 import Galeria from "../Galeria/Galeria";
-import AdminConfiguracion from "../Configuracion/AdminConfiguracion";
+import AdminClientes from "../Clientes/AdminClientes";
 
 import styles from "./AdminDashboard.module.css";
 
@@ -48,8 +48,8 @@ export default function AdminDashboard() {
 
       case "organizaciones":
         return <Organizaciones />;
-      case "configuracion":
-        return <AdminConfiguracion />;
+      case "clientes":
+        return <AdminClientes />;
 
       default:
         return <AdminInicio />;

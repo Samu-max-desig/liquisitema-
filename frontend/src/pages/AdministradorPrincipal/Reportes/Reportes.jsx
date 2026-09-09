@@ -25,21 +25,67 @@ export default function Reportes() {
       return;
     }
 
-    // Obtener organización del usuario actual
+    // ==========================================
+    // OBTENER ORGANIZACIÓN DEL USUARIO
+    // ==========================================
+
     const { data: usuario, error: usuarioError } = await supabase
       .from("usuarios")
       .select("organizacion_id")
       .eq("id", usuarioGuardado.id)
       .single();
 
-    if (usuarioError || !usuario?.organizacion_id) {
-      console.error("Error obteniendo organización del usuario:", usuarioError);
+    if (usuarioError) {
+      console.error("Error obteniendo usuario:", usuarioError);
       setReportes([]);
       setCargando(false);
       return;
     }
 
-    setOrganizacionSeleccionada(usuario.organizacion_id);
+    let organizacionId = usuario?.organizacion_id || null;
+
+    // ==========================================
+    // SI NO ESTÁ EN USUARIOS,
+    // BUSCAR EN USUARIOS_ORGANIZACIONES
+    // ==========================================
+
+    if (!organizacionId) {
+      const { data: relacion, error: relacionError } = await supabase
+        .from("usuarios_organizaciones")
+        .select("organizacion_id")
+        .eq("usuario_id", usuarioGuardado.id)
+        .eq("estado", "activo")
+        .limit(1)
+        .maybeSingle();
+
+      if (relacionError) {
+        console.error("Error obteniendo organización:", relacionError);
+        setReportes([]);
+        setCargando(false);
+        return;
+      }
+
+      organizacionId = relacion?.organizacion_id || null;
+    }
+
+    // ==========================================
+    // VERIFICAR ORGANIZACIÓN
+    // ==========================================
+
+    if (!organizacionId) {
+      console.error("El usuario no tiene una organización asignada.");
+      setReportes([]);
+      setCargando(false);
+      return;
+    }
+
+    console.log("ORGANIZACIÓN DE REPORTES:", organizacionId);
+
+    setOrganizacionSeleccionada(organizacionId);
+
+    // ==========================================
+    // CARGAR REPORTES
+    // ==========================================
 
     const { data, error } = await supabase
       .from("reportes")
@@ -64,7 +110,7 @@ export default function Reportes() {
       )
       .eq("estado", "Pendiente")
       .eq("domicilios.estado", "Reportado")
-      .eq("domicilios.organizacion_id", usuario.organizacion_id)
+      .eq("domicilios.organizacion_id", organizacionId)
       .order("created_at", { ascending: false });
 
     if (error) {

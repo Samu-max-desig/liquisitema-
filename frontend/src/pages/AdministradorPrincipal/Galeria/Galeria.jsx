@@ -41,20 +41,50 @@ export default function Galeria() {
     }
 
     // Obtener organización del usuario
+    // Obtener organización del usuario
     const { data: usuario, error: usuarioError } = await supabase
       .from("usuarios")
-      .select("organizacion_id")
+      .select("rol")
       .eq("id", user.id)
       .single();
 
-    if (usuarioError || !usuario?.organizacion_id) {
-      console.error("Error obteniendo organización:", usuarioError);
+    if (usuarioError || !usuario) {
+      console.error("Error obteniendo usuario:", usuarioError);
       setComprobantes([]);
       setCargando(false);
       return;
     }
 
-    setOrganizacionId(usuario.organizacion_id);
+    let organizacionActual = null;
+
+    // SUPER ADMIN → puede ver todas las organizaciones
+    if (usuario.rol === "super_admin") {
+      organizacionActual = null;
+    } else {
+      // ADMIN → obtener organización desde usuarios_organizaciones
+      const { data: organizaciones, error: errorOrganizaciones } =
+        await supabase.rpc("obtener_organizaciones_usuario");
+
+      if (errorOrganizaciones) {
+        console.error("Error obteniendo organizaciones:", errorOrganizaciones);
+        setComprobantes([]);
+        setCargando(false);
+        return;
+      }
+
+      console.log("ORGANIZACIONES DEL USUARIO:", organizaciones);
+
+      if (!organizaciones || organizaciones.length === 0) {
+        console.error("El usuario no tiene una organización asignada.");
+        setComprobantes([]);
+        setCargando(false);
+        return;
+      }
+
+      organizacionActual = organizaciones[0].organizacion_id;
+    }
+
+    setOrganizacionId(organizacionActual);
 
     const { data, error } = await supabase
       .from("domicilios")
@@ -76,7 +106,7 @@ export default function Galeria() {
       )
       `,
       )
-      .eq("organizacion_id", usuario.organizacion_id)
+      .eq("organizacion_id", organizacionActual)
       .not("comprobante_url", "is", null)
       .order("created_at", { ascending: false });
 

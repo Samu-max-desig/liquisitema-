@@ -11,7 +11,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
-
+import { obtenerActividadesPorOrganizacion } from "../../../services/actividadService";
 import { supabase } from "../../../config/supabase";
 
 import styles from "./AdminInicio.module.css";
@@ -30,7 +30,8 @@ export default function AdminInicio() {
   });
   const [graficaActiva, setGraficaActiva] = useState(0);
   const [cargando, setCargando] = useState(true);
-
+  const [actividades, setActividades] = useState([]);
+  const [cargandoActividades, setCargandoActividades] = useState(true);
   useEffect(() => {
     cargarDatos();
     cargarClaveDinamica();
@@ -41,11 +42,96 @@ export default function AdminInicio() {
       }
     };
   }, []);
+  useEffect(() => {
+    const cargarActividades = async () => {
+      try {
+        setCargandoActividades(true);
+
+        const usuarioGuardado = sessionStorage.getItem("usuario");
+
+        if (!usuarioGuardado) {
+          setActividades([]);
+          return;
+        }
+        const usuario = JSON.parse(usuarioGuardado);
+
+        const organizacionId = await obtenerOrganizacionActual(usuario.id);
+
+        if (!organizacionId) {
+          setActividades([]);
+          return;
+        }
+
+        const { data, error } = await obtenerActividadesPorOrganizacion(
+          organizacionId,
+          5,
+        );
+
+        if (error) {
+          console.error("Error cargando actividad reciente:", error);
+          setActividades([]);
+          return;
+        }
+
+        setActividades(data || []);
+      } catch (error) {
+        console.error("Error inesperado cargando actividades:", error);
+        setActividades([]);
+      } finally {
+        setCargandoActividades(false);
+      }
+    };
+
+    cargarActividades();
+  }, []);
   const [claveDinamica, setClaveDinamica] = useState("");
   const [claveAnimacion, setClaveAnimacion] = useState(0);
 
   const animacionInicializada = useRef(false);
   const timeoutClave = useRef(null);
+  // ==========================================
+  // OBTENER ORGANIZACIÓN ACTUAL DEL USUARIO
+  // ==========================================
+
+  const obtenerOrganizacionActual = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("usuarios_organizaciones")
+        .select(
+          `
+        organizacion_id,
+        rol,
+        estado,
+        organizaciones (
+          id,
+          nombre,
+          organizacion_principal_id
+        )
+      `,
+        )
+        .eq("usuario_id", userId)
+        .eq("estado", "activo")
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error obteniendo organización actual:", error);
+        return null;
+      }
+
+      if (!data?.organizacion_id) {
+        console.error("El usuario no tiene una organización asignada.");
+        return null;
+      }
+
+      console.log("ORGANIZACIÓN ACTUAL:", data.organizaciones);
+
+      return data.organizacion_id;
+    } catch (error) {
+      console.error("Error inesperado obteniendo organización:", error);
+      return null;
+    }
+  };
   const cargarClaveDinamica = async () => {
     try {
       const {
@@ -57,22 +143,16 @@ export default function AdminInicio() {
         return;
       }
 
-      const { data: usuario, error: usuarioError } = await supabase
-        .from("usuarios")
-        .select("organizacion_id")
-        .eq("id", user.id)
-        .single();
+      const organizacionId = await obtenerOrganizacionActual(user.id);
 
-      if (usuarioError || !usuario?.organizacion_id) {
-        console.error("USUARIO:", usuario);
-        console.error("ERROR:", usuarioError);
+      if (!organizacionId) {
         return;
       }
 
       const { data, error } = await supabase.rpc(
         "obtener_estado_clave_edicion",
         {
-          p_organizacion_id: usuario.organizacion_id,
+          p_organizacion_id: organizacionId,
         },
       );
 
@@ -84,11 +164,16 @@ export default function AdminInicio() {
       setClaveDinamica(data.clave);
 
       const tiempoRestante = Number(data.tiempo_restante);
+
       const tiempoTranscurrido = 60000 - tiempoRestante;
 
       if (!animacionInicializada.current) {
         setClaveAnimacion(tiempoTranscurrido);
         animacionInicializada.current = true;
+      }
+
+      if (timeoutClave.current) {
+        clearTimeout(timeoutClave.current);
       }
 
       timeoutClave.current = setTimeout(() => {
@@ -121,29 +206,12 @@ export default function AdminInicio() {
       // OBTENER ORGANIZACIÓN DEL ADMINISTRADOR
       // ==========================================
 
-      const { data: usuarioActual, error: usuarioError } = await supabase
-        .from("usuarios")
-        .select("organizacion_id")
-        .eq("id", user.id)
-        .single();
+      const organizacionId = await obtenerOrganizacionActual(user.id);
 
-      if (usuarioError) {
-        console.error(
-          "Error obteniendo organización del usuario:",
-          usuarioError,
-        );
-
+      if (!organizacionId) {
         setCargando(false);
         return;
       }
-
-      if (!usuarioActual?.organizacion_id) {
-        console.error("El usuario no tiene una organización asignada.");
-        setCargando(false);
-        return;
-      }
-
-      const organizacionId = usuarioActual.organizacion_id;
 
       console.log("=== INICIO ADMIN ===");
       console.log("USUARIO:", user.id);
@@ -152,7 +220,51 @@ export default function AdminInicio() {
       // ==========================================
       // FECHA ACTUAL
       // ==========================================
+      // ==========================================
+      // OBTENER DOMICILIARIOS ACTIVOS
+      // ==========================================
 
+      // ==========================================
+      // OBTENER DOMICILIARIOS ACTIVOS
+      // ==========================================
+
+      const { data: relacionesDomiciliarios, error: errorRelaciones } =
+        await supabase
+          .from("usuarios_organizaciones")
+          .select("usuario_id")
+          .eq("organizacion_id", organizacionId)
+          .eq("estado", "activo");
+
+      if (errorRelaciones) {
+        console.error(
+          "Error obteniendo relaciones de domiciliarios:",
+          errorRelaciones,
+        );
+      }
+
+      const idsDomiciliarios = (relacionesDomiciliarios || []).map(
+        (relacion) => relacion.usuario_id,
+      );
+
+      let domiciliariosActivos = [];
+
+      if (idsDomiciliarios.length > 0) {
+        const { data: usuariosDomiciliarios, error: errorUsuarios } =
+          await supabase
+            .from("usuarios")
+            .select("id, nombre, rol, estado")
+            .in("id", idsDomiciliarios)
+            .eq("rol", "domiciliario")
+            .eq("estado", "activo");
+
+        if (errorUsuarios) {
+          console.error("Error obteniendo domiciliarios:", errorUsuarios);
+        } else {
+          domiciliariosActivos = usuariosDomiciliarios || [];
+        }
+      }
+
+      console.log("DOMICILIARIOS ACTIVOS:", domiciliariosActivos);
       const hoy = new Date().toISOString().split("T")[0];
 
       // ==========================================
@@ -197,6 +309,7 @@ export default function AdminInicio() {
         pendientes,
         pagados,
         recaudado,
+        domiciliarios: domiciliariosActivos.length,
       }));
 
       console.log("DOMICILIOS HOY:", lista.length);
@@ -382,27 +495,71 @@ export default function AdminInicio() {
           </div>
 
           <div className={styles.adminInicioActivity}>
-            <div className={styles.adminInicioActivityItem}>
-              <div className={styles.adminInicioActivityDot}></div>
+            {cargandoActividades ? (
+              <div className={styles.adminInicioActivityItem}>
+                <div className={styles.adminInicioActivityDot}></div>
 
-              <div>
-                <strong>Actividad del sistema</strong>
-                <span>Los movimientos reales aparecerán aquí.</span>
+                <div>
+                  <strong>Cargando actividad...</strong>
+                  <span>Consultando los movimientos recientes.</span>
+                </div>
               </div>
+            ) : actividades.length === 0 ? (
+              <div className={styles.adminInicioActivityItem}>
+                <div className={styles.adminInicioActivityDot}></div>
 
-              <small>Ahora</small>
-            </div>
-
-            <div className={styles.adminInicioActivityItem}>
-              <div className={styles.adminInicioActivityDot}></div>
-
-              <div>
-                <strong>Domicilios registrados</strong>
-                <span>
-                  {estadisticas.domicilios} domicilios registrados hoy.
-                </span>
+                <div>
+                  <strong>Sin actividad reciente</strong>
+                  <span>Aún no hay movimientos registrados.</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              actividades.slice(0, 5).map((actividad) => (
+                <div
+                  className={styles.adminInicioActivityItem}
+                  key={actividad.id}
+                >
+                  <div className={styles.adminInicioActivityDot}></div>
+
+                  <div>
+                    <strong>
+                      {actividad.usuarios?.nombre || "Usuario"}{" "}
+                      {actividad.tipo === "domicilio"
+                        ? "creó un domicilio"
+                        : actividad.tipo === "cliente"
+                          ? "creó un cliente"
+                          : actividad.accion === "crear"
+                            ? "creó un usuario"
+                            : actividad.accion === "editar"
+                              ? "editó un usuario"
+                              : actividad.accion === "cambio_estado"
+                                ? "cambió el estado de un usuario"
+                                : actividad.accion === "compartir"
+                                  ? "compartió un usuario"
+                                  : actividad.accion === "compartir_aceptado"
+                                    ? "aceptó un usuario compartido"
+                                    : actividad.accion === "compartir_rechazado"
+                                      ? "rechazó un usuario compartido"
+                                      : actividad.accion}
+                    </strong>
+
+                    <span>
+                      {actividad.descripcion ||
+                        "Se realizó una acción en el sistema."}
+                    </span>
+                  </div>
+
+                  <small>
+                    {new Date(actividad.created_at).toLocaleString("es-CO", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </small>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

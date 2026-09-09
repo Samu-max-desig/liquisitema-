@@ -33,18 +33,57 @@ export default function Pendientes() {
       // 2. OBTENER DATOS DEL USUARIO
       // ==========================================
 
-      const { data: usuarioActual, error: errorUsuario } = await supabase
+      // ==========================================
+      // 2. OBTENER DATOS DEL USUARIO
+      // ==========================================
+
+      const { data: usuarioBase, error: errorUsuario } = await supabase
         .from("usuarios")
         .select("id, rol, estado, organizacion_id")
         .eq("id", user.id)
         .single();
 
-      if (errorUsuario || !usuarioActual) {
+      if (errorUsuario || !usuarioBase) {
         console.error("Error obteniendo usuario:", errorUsuario);
 
         setPendientes([]);
         return;
       }
+
+      // ==========================================
+      // OBTENER ORGANIZACIÓN ACTIVA
+      // ==========================================
+
+      let organizacionId = usuarioBase.organizacion_id;
+
+      // Si no tiene organización directa,
+      // buscarla en usuarios_organizaciones
+      if (!organizacionId) {
+        const { data: relacion, error: errorRelacion } = await supabase
+          .from("usuarios_organizaciones")
+          .select("organizacion_id")
+          .eq("usuario_id", user.id)
+          .eq("estado", "activo")
+          .limit(1)
+          .maybeSingle();
+
+        if (errorRelacion) {
+          console.error(
+            "Error obteniendo organización del usuario:",
+            errorRelacion,
+          );
+        }
+
+        organizacionId = relacion?.organizacion_id || null;
+      }
+
+      const usuarioActual = {
+        ...usuarioBase,
+        organizacion_id: organizacionId,
+      };
+
+      console.log("USUARIO ACTUAL:", usuarioActual);
+      console.log("ORGANIZACIÓN FINAL:", organizacionId);
 
       // ==========================================
       // 3. CARGAR PENDIENTES

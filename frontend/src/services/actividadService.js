@@ -6,7 +6,7 @@ import { supabase } from "../config/supabase";
 
 const obtenerUsuarioActual = () => {
   try {
-    const usuarioGuardado = localStorage.getItem("usuario");
+    const usuarioGuardado = sessionStorage.getItem("usuario");
 
     if (!usuarioGuardado) {
       return null;
@@ -34,18 +34,9 @@ export const registrarActividad = async ({
   usuarioAfectadoId = null,
 }) => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const usuario = obtenerUsuarioActual();
 
-    console.log("=== DEBUG ACTIVIDAD ===");
-    console.log("SESSION:", session);
-    console.log("USER ID:", session?.user?.id);
-    console.log("ROLE:", session?.user?.role);
-    console.log("=======================");
-    const usuarioGuardado = sessionStorage.getItem("usuario");
-
-    if (!usuarioGuardado) {
+    if (!usuario) {
       console.error(
         "No se pudo identificar al usuario que realizó la actividad.",
       );
@@ -55,8 +46,6 @@ export const registrarActividad = async ({
         error: new Error("Usuario no identificado"),
       };
     }
-
-    const usuario = JSON.parse(usuarioGuardado);
 
     const idUsuario = usuarioId || usuario.id;
 
@@ -71,11 +60,18 @@ export const registrarActividad = async ({
       };
     }
 
-    // Si no se especifica una organización,
-    // usamos la organización del usuario actual.
     const organizacionFinal = organizacionId || usuario.organizacion_id || null;
 
-    const { error } = await supabase.from("actividades").insert([
+    if (!organizacionFinal) {
+      console.error("El usuario no tiene una organización asignada.");
+
+      return {
+        data: null,
+        error: new Error("Organización no identificada"),
+      };
+    }
+
+    const { data, error } = await supabase.from("actividades").insert([
       {
         usuario_id: idUsuario,
         tipo,
@@ -86,20 +82,6 @@ export const registrarActividad = async ({
         usuario_afectado_id: usuarioAfectadoId,
       },
     ]);
-
-    if (error) {
-      console.error("Error registrando actividad:", error);
-
-      return {
-        data: null,
-        error,
-      };
-    }
-
-    return {
-      data: true,
-      error: null,
-    };
 
     if (error) {
       console.error("Error registrando actividad:", error);
@@ -134,20 +116,20 @@ export const obtenerActividades = async () => {
       .from("actividades")
       .select(
         `
-    id,
-    usuario_id,
-    tipo,
-    accion,
-    descripcion,
-    referencia_id,
-    organizacion_id,
-    usuario_afectado_id,
-    created_at,
-    usuarios!actividades_usuario_id_fkey (
-      id,
-      nombre
-    )
-    `,
+        id,
+        usuario_id,
+        tipo,
+        accion,
+        descripcion,
+        referencia_id,
+        organizacion_id,
+        usuario_afectado_id,
+        created_at,
+        usuarios!actividades_usuario_id_fkey (
+          id,
+          nombre
+        )
+      `,
       )
       .order("created_at", {
         ascending: false,
@@ -177,6 +159,75 @@ export const obtenerActividades = async () => {
 };
 
 // ==========================================
+// OBTENER ACTIVIDADES DE UNA ORGANIZACIÓN
+// ==========================================
+
+export const obtenerActividadesPorOrganizacion = async (
+  organizacionId,
+  limite = 5,
+) => {
+  try {
+    if (!organizacionId) {
+      console.error("No se recibió una organización válida.");
+
+      return {
+        data: [],
+        error: new Error("Organización no identificada"),
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("actividades")
+      .select(
+        `
+        id,
+        usuario_id,
+        tipo,
+        accion,
+        descripcion,
+        referencia_id,
+        organizacion_id,
+        usuario_afectado_id,
+        created_at,
+        usuarios!actividades_usuario_id_fkey (
+          id,
+          nombre
+        )
+      `,
+      )
+      .eq("organizacion_id", organizacionId)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(limite);
+
+    if (error) {
+      console.error("Error obteniendo actividades de la organización:", error);
+
+      return {
+        data: [],
+        error,
+      };
+    }
+
+    return {
+      data: data || [],
+      error: null,
+    };
+  } catch (error) {
+    console.error(
+      "Error inesperado obteniendo actividades de la organización:",
+      error,
+    );
+
+    return {
+      data: [],
+      error,
+    };
+  }
+};
+
+// ==========================================
 // OBTENER ACTIVIDADES DE UN USUARIO
 // ==========================================
 
@@ -196,10 +247,10 @@ export const obtenerActividadesPorUsuario = async (usuarioId) => {
         usuario_afectado_id,
         created_at,
         usuarios!actividades_usuario_id_fkey (
-        id,
-        nombre
+          id,
+          nombre
         )
-        `,
+      `,
       )
       .eq("usuario_id", usuarioId)
       .order("created_at", {

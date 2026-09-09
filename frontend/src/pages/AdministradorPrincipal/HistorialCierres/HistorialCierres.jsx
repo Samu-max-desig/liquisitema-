@@ -22,42 +22,86 @@ export default function HistorialCierres() {
   const [fechaFiltro, setFechaFiltro] = useState("");
 
   const [cierreSeleccionado, setCierreSeleccionado] = useState(null);
+
   const [organizacionSeleccionada, setOrganizacionSeleccionada] =
     useState(null);
+
+  const [organizacionCargada, setOrganizacionCargada] = useState(false);
+
   const [domiciliosCierre, setDomiciliosCierre] = useState([]);
 
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
+
+  // ==========================================
+  // CARGAR ORGANIZACIÓN DEL USUARIO
+  // ==========================================
+
   const cargarOrganizacionUsuario = async () => {
-    const {
-      data: { user },
-      error: errorAuth,
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: errorAuth,
+      } = await supabase.auth.getUser();
 
-    if (errorAuth || !user) {
-      console.error("Error obteniendo usuario:", errorAuth);
-      return;
+      if (errorAuth || !user) {
+        console.error("Error obteniendo usuario:", errorAuth);
+        setOrganizacionCargada(true);
+        return;
+      }
+
+      // Obtener rol del usuario
+      const { data: usuario, error: errorUsuario } = await supabase
+        .from("usuarios")
+        .select("rol")
+        .eq("id", user.id)
+        .single();
+
+      if (errorUsuario || !usuario) {
+        console.error("Error obteniendo usuario:", errorUsuario);
+        setOrganizacionCargada(true);
+        return;
+      }
+
+      console.log("USUARIO EN CIERRES:", usuario);
+
+      // SUPER ADMIN → puede ver todas las organizaciones
+      if (usuario.rol === "super_admin") {
+        setOrganizacionSeleccionada(null);
+        setOrganizacionCargada(true);
+        return;
+      }
+
+      // ADMIN → obtener sus organizaciones asociadas
+      const { data: organizaciones, error: errorOrganizaciones } =
+        await supabase.rpc("obtener_organizaciones_usuario");
+
+      if (errorOrganizaciones) {
+        console.error(
+          "Error obteniendo organizaciones del usuario:",
+          errorOrganizaciones,
+        );
+        setOrganizacionCargada(true);
+        return;
+      }
+
+      console.log("ORGANIZACIONES DEL USUARIO:", organizaciones);
+
+      if (!organizaciones || organizaciones.length === 0) {
+        console.error("El usuario no tiene una organización asignada.");
+        setOrganizacionCargada(true);
+        return;
+      }
+
+      // Usar la primera organización activa
+      setOrganizacionSeleccionada(organizaciones[0].organizacion_id);
+
+      setOrganizacionCargada(true);
+    } catch (error) {
+      console.error("Error cargando organización:", error);
+      setOrganizacionCargada(true);
     }
-
-    const { data: usuario, error } = await supabase
-      .from("usuarios")
-      .select("rol, organizacion_id")
-      .eq("id", user.id)
-      .single();
-
-    if (error || !usuario) {
-      console.error("Error obteniendo organización del usuario:", error);
-      return;
-    }
-
-    // Super admin puede ver todos los cierres
-    if (usuario.rol === "super_admin") {
-      setOrganizacionSeleccionada(null);
-      return;
-    }
-
-    // Admin normal → usar su organización
-    setOrganizacionSeleccionada(usuario.organizacion_id);
   };
+
   // ==========================================
   // CARGAR CIERRES
   // ==========================================
@@ -65,55 +109,66 @@ export default function HistorialCierres() {
   const cargarCierres = async () => {
     setCargando(true);
 
-    if (!organizacionSeleccionada) {
-      setCierres([]);
-      setCargando(false);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("cierres_dia")
-      .select(
-        `
-      id,
-      fecha,
-      domiciliario_id,
-      organizacion_id,
-      total_domicilios,
-      total_recaudado,
-      total_pagados,
-      total_pendientes,
-      total_cancelados,
-      total_reportados,
-      usuarios!cierres_dia_domiciliario_id_fkey (
+    try {
+      let consulta = supabase
+        .from("cierres_dia")
+        .select(
+          `
         id,
-        nombre
-      )
+        fecha,
+        domiciliario_id,
+        organizacion_id,
+        total_domicilios,
+        total_recaudado,
+        total_pagados,
+        total_pendientes,
+        total_cancelados,
+        total_reportados,
+        usuarios!cierres_dia_domiciliario_id_fkey (
+          id,
+          nombre
+        )
       `,
-      )
-      .eq("organizacion_id", organizacionSeleccionada)
-      .order("fecha", { ascending: false });
+        )
+        .order("fecha", { ascending: false });
 
-    if (error) {
-      console.error("Error cargando cierres:", error);
+      // ADMIN → solamente su organización
+      if (organizacionSeleccionada) {
+        consulta = consulta.eq("organizacion_id", organizacionSeleccionada);
+      }
+
+      const { data, error } = await consulta;
+
+      if (error) {
+        console.error("Error cargando cierres:", error);
+        setCierres([]);
+        return;
+      }
+
+      console.log("CIERRES CARGADOS:", data);
+
+      setCierres(data || []);
+    } catch (error) {
+      console.error("Error general cargando cierres:", error);
       setCierres([]);
+    } finally {
       setCargando(false);
-      return;
     }
-
-    setCierres(data || []);
-    setCargando(false);
   };
+
+  // ==========================================
+  // CARGAR AL ENTRAR
+  // ==========================================
 
   useEffect(() => {
     cargarOrganizacionUsuario();
   }, []);
 
   useEffect(() => {
-    if (!organizacionSeleccionada) return;
+    if (!organizacionCargada) return;
 
     cargarCierres();
-  }, [organizacionSeleccionada]);
+  }, [organizacionCargada, organizacionSeleccionada]);
   // ==========================================
   // FILTROS
   // ==========================================

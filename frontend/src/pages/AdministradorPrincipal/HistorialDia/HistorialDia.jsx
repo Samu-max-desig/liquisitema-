@@ -65,6 +65,37 @@ export default function HistorialDia() {
         return;
       }
 
+      // ==========================================
+      // OBTENER ORGANIZACIÓN
+      // ==========================================
+
+      let organizacionId = usuarioActual.organizacion_id;
+
+      // Si el usuario no tiene organizacion_id,
+      // buscarla en usuarios_organizaciones
+      if (!organizacionId) {
+        const { data: relacionOrganizacion, error: errorOrganizacion } =
+          await supabase
+            .from("usuarios_organizaciones")
+            .select("organizacion_id")
+            .eq("usuario_id", user.id)
+            .eq("estado", "activo")
+            .limit(1)
+            .maybeSingle();
+
+        if (errorOrganizacion) {
+          console.error(
+            "Error obteniendo organización desde usuarios_organizaciones:",
+            errorOrganizacion,
+          );
+        } else if (relacionOrganizacion?.organizacion_id) {
+          organizacionId = relacionOrganizacion.organizacion_id;
+        }
+      }
+
+      console.log("USUARIO ACTUAL:", usuarioActual);
+      console.log("ORGANIZACIÓN FINAL:", organizacionId);
+
       let consultaDomicilios = supabase
         .from("domicilios")
         .select("*")
@@ -72,20 +103,18 @@ export default function HistorialDia() {
         .lt("created_at", inicioDelDiaSiguiente.toISOString())
         .is("cierre_id", null);
 
-      if (usuarioActual.rol !== "super_admin") {
-        if (!usuarioActual.organizacion_id) {
-          console.error("El usuario no tiene organización asignada.");
+      if (!organizacionId) {
+        console.error("El usuario no tiene organización asignada.");
 
-          setDomicilios([]);
-          setDomiciliarios([]);
-          return;
-        }
-
-        consultaDomicilios = consultaDomicilios.eq(
-          "organizacion_id",
-          usuarioActual.organizacion_id,
-        );
+        setDomicilios([]);
+        setDomiciliarios([]);
+        return;
       }
+
+      consultaDomicilios = consultaDomicilios.eq(
+        "organizacion_id",
+        organizacionId,
+      );
 
       const { data: listaDomicilios, error: errorDomicilios } =
         await consultaDomicilios.order("created_at", {

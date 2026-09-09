@@ -1,0 +1,719 @@
+/* ==========================================
+   CONTENEDOR PRINCIPAL
+========================================== */
+
+.lqClientes {
+  width: 100%;
+  min-height: 100%;
+  padding: 28px;
+  box-sizing: border-box;
+}
+
+/* ==========================================
+   ENCABEZADO
+========================================== */
+
+.lqClientesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.lqClientesHeader h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.lqClientesHeader p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* ==========================================
+   TOOLBAR
+========================================== */
+
+.lqClientesToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+/* ==========================================
+   BUSCADOR
+========================================== */
+
+.lqClientesSearch {
+  width: 100%;
+  max-width: 520px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 15px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lqClientesSearch:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.lqClientesSearch svg {
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.lqClientesSearch input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.lqClientesSearch input::placeholder {
+  color: #94a3b8;
+}
+
+/* ==========================================
+   CONTADOR
+========================================== */
+
+.lqClientesCount {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lqClientesCount svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* ==========================================
+   CONTENEDOR TABLA
+========================================== */
+
+.lqClientesTableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);
+}
+
+/* ==========================================
+   TABLA
+========================================== */
+
+.lqClientesTable {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+}
+
+.lqClientesTable thead {
+  background: #f8fafc;
+}
+
+.lqClientesTable th {
+  padding: 15px 18px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.lqClientesTable td {
+  padding: 15px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.lqClientesTable tbody tr {
+  transition: background 0.15s ease;
+}
+
+.lqClientesTable tbody tr:hover {
+  background: #f8fafc;
+}
+
+.lqClientesTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ==========================================
+   NOMBRE DEL CLIENTE
+========================================== */
+
+.lqClienteNombre {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 190px;
+}
+
+.lqClienteNombre strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ==========================================
+   AVATAR
+========================================== */
+
+.lqClienteAvatar {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.lqClienteAvatar svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* ==========================================
+   BADGE ORGANIZACIONES
+========================================== */
+
+.lqClienteBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ==========================================
+   BOTÓN COMPARTIR
+========================================== */
+
+.lqClienteShareButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease,
+    transform 0.15s ease;
+}
+
+.lqClienteShareButton:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  transform: translateY(-1px);
+}
+
+.lqClienteShareButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lqClienteShareButton svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ==========================================
+   ESTADO VACÍO
+========================================== */
+
+.lqClientesEmpty {
+  min-height: 280px;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  color: #64748b;
+}
+
+.lqClientesEmpty svg {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 6px;
+  color: #94a3b8;
+}
+
+.lqClientesEmpty strong {
+  color: #334155;
+  font-size: 15px;
+}
+
+.lqClientesEmpty span {
+  max-width: 420px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ==========================================
+   OVERLAY MODAL
+========================================== */
+
+.lqModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(3px);
+  box-sizing: border-box;
+}
+
+/* ==========================================
+   MODAL COMPARTIR
+========================================== */
+
+.lqModal {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+}
+
+.lqModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 22px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.lqModalHeader h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.lqModalHeader p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.lqModalHeader > button {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.lqModalHeader > button:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.lqModalHeader > button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ==========================================
+   CLIENTE EN MODAL
+========================================== */
+
+.lqModalCliente {
+  margin: 20px 24px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+}
+
+.lqModalCliente strong {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.lqModalCliente span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* ==========================================
+   FORMULARIO MODAL
+========================================== */
+
+.lqModal form {
+  padding: 0 24px 24px;
+}
+
+.lqModal form label {
+  display: block;
+  margin-bottom: 7px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lqModal form select {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.lqModal form select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ==========================================
+   MENSAJES
+========================================== */
+
+.lqMensajeError,
+.lqMensajeExito {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.lqMensajeError {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.lqMensajeExito {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+/* ==========================================
+   ACCIONES MODAL
+========================================== */
+
+.lqModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.lqModalActions button {
+  min-height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.lqModalActions button:first-child {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+}
+
+.lqModalActions button:first-child:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.lqModalActions button:last-child {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.lqModalActions button:last-child:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.lqModalActions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lqModalActions svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ==========================================
+   MODAL SOLICITUD ENTRANTE
+========================================== */
+
+.lqSolicitudModal {
+  width: 100%;
+  max-width: 430px;
+  padding: 28px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.lqSolicitudIcon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.lqSolicitudIcon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.lqSolicitudModal h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.lqSolicitudModal > p {
+  margin: 10px 0 18px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.lqSolicitudModal > p strong {
+  color: #334155;
+}
+
+/* ==========================================
+   DATOS CLIENTE SOLICITUD
+========================================== */
+
+.lqSolicitudCliente {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+}
+
+.lqSolicitudCliente strong {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.lqSolicitudCliente span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* ==========================================
+   BOTONES SOLICITUD
+========================================== */
+
+.lqSolicitudActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.lqSolicitudActions button {
+  flex: 1;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.lqSolicitudActions button:first-child {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.lqSolicitudActions button:first-child:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.lqSolicitudActions button:last-child {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.lqSolicitudActions button:last-child:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.lqSolicitudActions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lqSolicitudActions svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media (max-width: 768px) {
+  .lqClientes {
+    padding: 20px 15px;
+  }
+
+  .lqClientesHeader h1 {
+    font-size: 24px;
+  }
+
+  .lqClientesToolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lqClientesSearch {
+    max-width: none;
+  }
+
+  .lqClientesCount {
+    width: fit-content;
+  }
+
+  .lqModal {
+    max-width: 100%;
+  }
+
+  .lqSolicitudModal {
+    max-width: 100%;
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lqClientes {
+    padding: 16px 10px;
+  }
+
+  .lqClientesHeader {
+    margin-bottom: 18px;
+  }
+
+  .lqClientesHeader h1 {
+    font-size: 22px;
+  }
+
+  .lqClientesHeader p {
+    font-size: 13px;
+  }
+
+  .lqModalHeader {
+    padding: 18px;
+  }
+
+  .lqModalCliente {
+    margin: 16px 18px;
+  }
+
+  .lqModal form {
+    padding: 0 18px 18px;
+  }
+
+  .lqModalActions {
+    flex-direction: column-reverse;
+  }
+
+  .lqModalActions button {
+    width: 100%;
+  }
+
+  .lqSolicitudActions {
+    flex-direction: column;
+  }
+}

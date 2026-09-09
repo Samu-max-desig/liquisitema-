@@ -16,6 +16,7 @@ import styles from "./Usuarios.module.css";
 
 export default function Usuarios() {
   const usuarioActual = JSON.parse(sessionStorage.getItem("usuario") || "null");
+  const [organizacionActualId, setOrganizacionActualId] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState("");
@@ -278,7 +279,6 @@ export default function Usuarios() {
     if (creandoUsuario) return;
 
     setModalCrear(false);
-
     setNuevoUsuario({
       nombre: "",
       telefono: "",
@@ -289,6 +289,7 @@ export default function Usuarios() {
       estado: "activo",
       password: "",
       confirmarPassword: "",
+      organizacion_id: "",
     });
 
     setMensaje({
@@ -301,20 +302,241 @@ export default function Usuarios() {
   // CARGAR USUARIOS
   // ==========================================
 
+  // ==========================================
+  // OBTENER ORGANIZACIÓN ACTUAL
+  // ==========================================
+
+  const obtenerOrganizacionActual = async () => {
+    if (!usuarioActual?.id) {
+      console.error("No hay usuario actual.");
+      return null;
+    }
+
+    // ==========================================
+    // SUPER ADMIN
+    // ==========================================
+
+    if (usuarioActual.rol === "super_admin") {
+      console.log("Usuario actual es SUPER ADMIN.");
+
+      setOrganizacionActualId(null);
+
+      return null;
+    }
+
+    // ==========================================
+    // BUSCAR ORGANIZACIÓN MEDIANTE
+    // usuarios_organizaciones
+    // ==========================================
+
+    const { data, error } = await supabase
+      .from("usuarios_organizaciones")
+      .select(
+        `
+      organizacion_id,
+      rol,
+      estado,
+      organizaciones (
+        id,
+        nombre,
+        estado,
+        organizacion_principal_id
+      )
+    `,
+      )
+      .eq("usuario_id", usuarioActual.id)
+      .eq("estado", "activo")
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error obteniendo organización del usuario:", error);
+
+      setOrganizacionActualId(null);
+
+      return null;
+    }
+
+    if (!data?.organizacion_id) {
+      console.error("El usuario no tiene una organización asignada.");
+
+      setOrganizacionActualId(null);
+
+      return null;
+    }
+
+    console.log("RELACIÓN USUARIO - ORGANIZACIÓN:", data);
+
+    console.log("ORGANIZACIÓN ACTUAL:", data.organizaciones);
+
+    setOrganizacionActualId(data.organizacion_id);
+
+    return data.organizacion_id;
+  };
+
+  // ==========================================
+  // CARGAR USUARIOS
+  // ==========================================
+
   useEffect(() => {
-    cargarUsuarios();
-    cargarOrganizaciones();
+    const inicializar = async () => {
+      const organizacionId = await obtenerOrganizacionActual();
+
+      await cargarUsuarios(organizacionId);
+
+      await cargarOrganizaciones();
+    };
+
+    inicializar();
   }, []);
+
+  // ==========================================
+  // CARGAR USUARIOS
+  // ==========================================
+
+  const cargarUsuarios = async (organizacionIdParam = null) => {
+    setCargando(true);
+
+    console.log("==========================================");
+    console.log("CARGANDO USUARIOS");
+    console.log("USUARIO ACTUAL:", usuarioActual);
+    console.log("ORGANIZACIÓN ACTUAL:", organizacionIdParam);
+    console.log("==========================================");
+
+    if (!usuarioActual?.id) {
+      console.error("No hay usuario autenticado.");
+
+      setUsuarios([]);
+      setCargando(false);
+
+      return;
+    }
+
+    // ==========================================
+    // SUPER ADMIN
+    // ==========================================
+
+    if (usuarioActual.rol === "super_admin") {
+      console.log("SUPER ADMIN → CARGANDO TODOS LOS USUARIOS");
+
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select(
+          `
+        id,
+        nombre,
+        telefono,
+        direccion,
+        documento,
+        correo,
+        rol,
+        estado,
+        created_at
+      `,
+        )
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (error) {
+        console.error("Error cargando usuarios:", error);
+
+        setUsuarios([]);
+        setCargando(false);
+
+        return;
+      }
+
+      setUsuarios(data || []);
+
+      console.log("USUARIOS SUPER ADMIN:", data);
+
+      setCargando(false);
+
+      return;
+    }
+
+    // ==========================================
+    // ADMIN
+    // ==========================================
+
+    if (!organizacionIdParam) {
+      console.error("El administrador no tiene una organización asignada.");
+
+      setUsuarios([]);
+      setCargando(false);
+
+      return;
+    }
+
+    console.log("ADMIN → CARGANDO USUARIOS DE:", organizacionIdParam);
+
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select(
+        `
+      id,
+      nombre,
+      telefono,
+      direccion,
+      documento,
+      correo,
+      rol,
+      estado,
+      created_at,
+
+      usuarios_organizaciones!inner (
+        organizacion_id,
+        rol,
+        estado
+      )
+    `,
+      )
+      .eq("usuarios_organizaciones.organizacion_id", organizacionIdParam)
+      .eq("usuarios_organizaciones.estado", "activo")
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (error) {
+      console.error("Error cargando usuarios:", error);
+
+      setUsuarios([]);
+      setCargando(false);
+
+      return;
+    }
+
+    setUsuarios(data || []);
+
+    console.log("USUARIOS DE LA ORGANIZACIÓN:", data);
+
+    setCargando(false);
+  };
   useEffect(() => {
     if (!usuarioActual?.id || usuarioActual.rol !== "admin") {
       return;
     }
 
-    const cargarSolicitudesPendientes = async () => {
-      const { data, error } = await supabase
-        .from("solicitudes_usuarios")
-        .select(
-          `
+    const cargarSolicitudesPendientes = async (organizacionActualId) => {
+      try {
+        if (!organizacionActualId) {
+          console.warn(
+            "⚠️ No se pueden cargar solicitudes: no hay organización actual",
+          );
+          setSolicitudesPendientes([]);
+          return;
+        }
+
+        console.log(
+          "📨 CARGANDO SOLICITUDES PARA ORGANIZACIÓN:",
+          organizacionActualId,
+        );
+
+        const { data, error } = await supabase
+          .from("solicitudes_usuarios")
+          .select(
+            `
         id,
         usuario_id,
         organizacion_origen_id,
@@ -331,25 +553,27 @@ export default function Usuarios() {
           nombre
         )
       `,
-        )
-        .eq("organizacion_destino_id", usuarioActual.organizacion_id)
-        .eq("estado", "pendiente")
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1);
+          )
+          .eq("organizacion_destino_id", organizacionActualId)
+          .eq("estado", "pendiente")
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error cargando solicitudes pendientes:", error);
-        return;
-      }
+        if (error) {
+          console.error("❌ Error cargando solicitudes pendientes:", error);
 
-      if (data?.length > 0) {
-        setSolicitudEntrante(data[0]);
+          setSolicitudesPendientes([]);
+          return;
+        }
+
+        console.log("📨 Solicitudes pendientes:", data);
+
+        setSolicitudesPendientes(data || []);
+      } catch (error) {
+        console.error("❌ Error inesperado cargando solicitudes:", error);
+
+        setSolicitudesPendientes([]);
       }
     };
-
-    cargarSolicitudesPendientes();
 
     const canal = supabase
       .channel(`solicitudes-usuarios-${usuarioActual.id}`)
@@ -431,100 +655,6 @@ export default function Usuarios() {
       supabase.removeChannel(canal);
     };
   }, []);
-  const cargarUsuarios = async () => {
-    setCargando(true);
-    console.log("USUARIO ACTUAL:", usuarioActual);
-    console.log("ORGANIZACIÓN DEL ADMIN:", usuarioActual?.organizacion_id);
-    if (!usuarioActual?.id) {
-      setUsuarios([]);
-      setCargando(false);
-      return;
-    }
-
-    // ==========================================
-    // SUPER ADMIN → VE TODOS LOS USUARIOS
-    // ==========================================
-    const { data: pruebaRelaciones, error: errorPrueba } = await supabase
-      .from("usuarios_organizaciones")
-      .select("usuario_id, organizacion_id, rol, estado")
-      .eq("organizacion_id", usuarioActual.organizacion_id);
-
-    console.log("RELACIONES DIRECTAS:", pruebaRelaciones);
-    console.log("ERROR RELACIONES:", errorPrueba);
-    if (usuarioActual.rol === "super_admin") {
-      const { data, error } = await supabase
-        .from("usuarios")
-        .select(
-          "id, nombre, telefono, direccion, documento, correo, rol, estado, created_at",
-        )
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (error) {
-        console.error("Error cargando usuarios:", error);
-        setUsuarios([]);
-        setCargando(false);
-        return;
-      }
-
-      setUsuarios(data || []);
-      console.log("USUARIOS QUE RECIBIÓ EL ADMIN:", data);
-      setCargando(false);
-      return;
-    }
-
-    // ==========================================
-    // ADMIN → SOLO USUARIOS DE SU ORGANIZACIÓN
-    // ==========================================
-
-    if (!usuarioActual.organizacion_id) {
-      console.error("El administrador no tiene organización asignada.");
-      setUsuarios([]);
-      setCargando(false);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select(
-        `
-      id,
-      nombre,
-      telefono,
-      direccion,
-      documento,
-      correo,
-      rol,
-      estado,
-      created_at,
-      usuarios_organizaciones!inner (
-        organizacion_id,
-        estado
-      )
-      `,
-      )
-      .eq(
-        "usuarios_organizaciones.organizacion_id",
-        usuarioActual.organizacion_id,
-      )
-      .eq("usuarios_organizaciones.estado", "activo")
-      .eq("rol", "domiciliario")
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (error) {
-      console.error("Error cargando usuarios:", error);
-      setUsuarios([]);
-      setCargando(false);
-      return;
-    }
-
-    setUsuarios(data || []);
-    console.log("USUARIOS QUE RECIBIÓ EL ADMIN:", data);
-    setCargando(false);
-  };
 
   // ==========================================
   // FILTRAR USUARIOS
@@ -636,7 +766,15 @@ export default function Usuarios() {
         rol: nuevoUsuario.rol,
         estado: nuevoUsuario.estado,
         password: nuevoUsuario.password,
-        organizacion_id: nuevoUsuario.organizacion_id,
+
+        // ==========================================
+        // ORGANIZACIÓN ACTUAL
+        // ==========================================
+
+        organizacion_id:
+          usuarioActual.rol === "super_admin"
+            ? nuevoUsuario.organizacion_id
+            : organizacionActualId,
       },
     });
 

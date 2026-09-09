@@ -70,17 +70,17 @@ export default function DomiciliarioDashboard() {
   const [domicilios, setDomicilios] = useState([]);
   const [modalReporte, setModalReporte] = useState(false);
   const [telefonoBusqueda, setTelefonoBusqueda] = useState("");
+  const [clientesEncontrados, setClientesEncontrados] = useState([]);
   const [clienteEncontrado, setClienteEncontrado] = useState(null);
+  const [clienteNoEncontrado, setClienteNoEncontrado] = useState(false);
   const [fotoComprobante, setFotoComprobante] = useState(null);
   const [domicilioSeleccionado, setDomicilioSeleccionado] = useState(null);
   const [vistaActual, setVistaActual] = useState("inicio");
-  const [clienteNoEncontrado, setClienteNoEncontrado] = useState(false);
   const usuario = JSON.parse(sessionStorage.getItem("usuario"));
   const [mostrarImagen, setMostrarImagen] = useState(false);
   const [modoOscuro, setModoOscuro] = useState(
     localStorage.getItem("modoOscuro") === "true",
   );
-
   const [cambioRecaudo, setCambioRecaudo] = useState(null);
   const recaudoAnteriorRef = useRef(null);
   useEffect(() => {
@@ -272,9 +272,9 @@ export default function DomiciliarioDashboard() {
 
     if (guardandoDomicilio) return;
 
-    setGuardandoDomicilio(true);
     setSubmitted(true);
-    // Validaciones
+
+    // Validaciones ANTES de bloquear el botón
     if (
       !formData.cliente.trim() ||
       !formData.direccion.trim() ||
@@ -306,129 +306,175 @@ export default function DomiciliarioDashboard() {
 
     setError("");
 
-    // Número de factura
-    const numeroFactura = `FAC-${Date.now()}`;
+    // Ahora sí bloqueamos el botón
+    setGuardandoDomicilio(true);
 
-    // Buscar si el cliente ya existe
-    const { data: clienteExistente } = await supabase
-      .from("clientes")
-      .select("id")
-      .eq("telefono", formData.telefono)
-      .maybeSingle();
+    try {
+      // Número de factura
+      const numeroFactura = `FAC-${Date.now()}`;
 
-    // Crear cliente si no existe
-    if (!clienteExistente) {
-      const { error: clienteError } = await supabase.from("clientes").insert([
-        {
-          nombre: formData.cliente,
-          telefono: formData.telefono,
-          direccion: formData.direccion,
-        },
-      ]);
+      // Buscar si el cliente ya existe
+      const { data: clienteExistente } = await supabase
+        .from("clientes")
+        .select("id")
+        .eq("telefono", formData.telefono)
+        .eq("organizacion_id", organizacionSeleccionada)
+        .maybeSingle();
 
-      if (clienteError) {
-        console.error("Error creando cliente:", clienteError);
-        setError("No se pudo registrar el cliente.");
+      if (buscarClienteError) {
+        console.error("Error buscando cliente:", buscarClienteError);
+
+        setError("No se pudo verificar el cliente.");
         return;
       }
-    }
 
-    // Guardar domicilio y obtener el domicilio creado
-    const { data: domicilioCreado, error: supabaseError } = await supabase
-      .from("domicilios")
-      .insert([
-        {
-          numero_factura: numeroFactura,
-          cliente: formData.cliente,
-          telefono: formData.telefono,
-          direccion: formData.direccion,
-          costo: formData.valor,
-          metodo_pago: formData.metodo_pago,
-          observaciones: formData.observaciones,
+      // Crear cliente si no existe
+      if (!clienteExistente) {
+        const { data: nuevoCliente, error: clienteError } = await supabase
+          .from("clientes")
+          .insert([
+            {
+              nombre: formData.cliente,
+              telefono: formData.telefono,
+              direccion: formData.direccion,
+              organizacion_id: organizacionSeleccionada,
+            },
+          ])
+          .select("id")
+          .single();
 
-          // Otro = Pendiente
-          // Los demás métodos = Pagado
-          estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
+        if (clienteError) {
+          console.error("Error creando cliente:", clienteError);
+          setError("No se pudo registrar el cliente.");
+          return;
+        }
 
-          domiciliario_id: usuario.id,
-          organizacion_id: organizacionSeleccionada,
-        },
-      ])
-      .select()
-      .single();
-
-    // Error guardando domicilio
-    if (supabaseError) {
-      console.error("Error guardando domicilio:", supabaseError);
-      setError("Error al guardar el domicilio.");
-      return;
-    }
-
-    await registrarActividad({
-      usuarioId: usuario.id,
-      tipo: "domicilio",
-      accion: "crear",
-      descripcion: `Registró el domicilio de ${formData.cliente}.`,
-      referenciaId: domicilioCreado.id,
-      organizacionId: organizacionSeleccionada,
-    });
-    // Si no pagó → crear o acumular deuda
-    if (formData.metodo_pago === "Otro") {
-      const { error: pendienteError } = await supabase.rpc(
-        "crear_o_acumular_pendiente",
-        {
-          p_cliente: formData.cliente,
-          p_telefono: formData.telefono,
-          p_direccion: formData.direccion,
-          p_monto: Number(formData.valor),
-          p_domicilio_id: domicilioCreado.id,
-        },
-      );
-
-      if (pendienteError) {
-        console.error("========== ERROR PENDIENTE ==========");
-        console.error("ERROR COMPLETO:", pendienteError);
-        console.error("CODE:", pendienteError.code);
-        console.error("MESSAGE:", pendienteError.message);
-        console.error("DETAILS:", pendienteError.details);
-        console.error("HINT:", pendienteError.hint);
-        console.error("====================================");
-
-        Swal.fire({
-          icon: "warning",
-          title: "Domicilio guardado",
-          text: "El domicilio se guardó, pero no se pudo registrar la deuda.",
-          confirmButtonColor: "#2563eb",
+        // Registrar actividad del nuevo cliente
+        await registrarActividad({
+          usuarioId: usuario.id,
+          tipo: "cliente",
+          accion: "crear",
+          descripcion: `Agregó al nuevo cliente ${formData.cliente}.`,
+          referenciaId: nuevoCliente.id,
+          organizacionId: organizacionSeleccionada,
         });
+      }
 
+      // Guardar domicilio
+      const { data: domicilioCreado, error: supabaseError } = await supabase
+        .from("domicilios")
+        .insert([
+          {
+            numero_factura: numeroFactura,
+            cliente: formData.cliente,
+            telefono: formData.telefono,
+            direccion: formData.direccion,
+            costo: formData.valor,
+            metodo_pago: formData.metodo_pago,
+            observaciones: formData.observaciones,
+
+            // Otro = Pendiente
+            // Los demás métodos = Pagado
+            estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
+
+            domiciliario_id: usuario.id,
+            organizacion_id: organizacionSeleccionada,
+          },
+        ])
+        .select()
+        .single();
+
+      // Error guardando domicilio
+      if (supabaseError) {
+        console.error("Error guardando domicilio:", supabaseError);
+
+        setError("Error al guardar el domicilio.");
         return;
       }
+
+      console.log("🏢 ORGANIZACIÓN DEL DOMICILIO:", organizacionSeleccionada);
+
+      // Registrar actividad del domicilio
+      await registrarActividad({
+        usuarioId: usuario.id,
+        tipo: "domicilio",
+        accion: "crear",
+        descripcion: `Registró el domicilio de ${formData.cliente}.`,
+        referenciaId: domicilioCreado.id,
+        organizacionId: organizacionSeleccionada,
+      });
+
+      // Si no pagó → crear o acumular deuda
+      if (formData.metodo_pago === "Otro") {
+        const { error: pendienteError } = await supabase.rpc(
+          "crear_o_acumular_pendiente",
+          {
+            p_cliente: formData.cliente,
+            p_telefono: formData.telefono,
+            p_direccion: formData.direccion,
+            p_monto: Number(formData.valor),
+            p_domicilio_id: domicilioCreado.id,
+          },
+        );
+
+        if (pendienteError) {
+          console.error("========== ERROR PENDIENTE ==========");
+          console.error("ERROR COMPLETO:", pendienteError);
+          console.error("CODE:", pendienteError.code);
+          console.error("MESSAGE:", pendienteError.message);
+          console.error("DETAILS:", pendienteError.details);
+          console.error("HINT:", pendienteError.hint);
+          console.error("====================================");
+
+          await Swal.fire({
+            icon: "warning",
+            title: "Domicilio guardado",
+            text: "El domicilio se guardó, pero no se pudo registrar la deuda.",
+            confirmButtonColor: "#2563eb",
+          });
+
+          return;
+        }
+      }
+
+      // Éxito
+      await Swal.fire({
+        icon: "success",
+        title: "Domicilio guardado",
+        text: "El domicilio fue registrado correctamente.",
+        confirmButtonColor: "#2563eb",
+      });
+
+      // Limpiar organización
+      setOrganizacionSeleccionada("");
+
+      // Limpiar formulario
+      setFormData({
+        cliente: "",
+        direccion: "",
+        telefono: "",
+        valor: "",
+        propina: "",
+        metodo_pago: "",
+        observaciones: "",
+      });
+
+      // Limpiar buscador
+      setTelefonoBusqueda("");
+      setClientesEncontrados([]);
+      setClienteEncontrado(null);
+      setClienteNoEncontrado(false);
+
+      setSubmitted(false);
+      setError("");
+    } catch (error) {
+      console.error("Error inesperado guardando domicilio:", error);
+
+      setError("Ocurrió un error inesperado al guardar el domicilio.");
+    } finally {
+      // 🔥 SIEMPRE desbloquea el botón
+      setGuardandoDomicilio(false);
     }
-
-    // Éxito
-    Swal.fire({
-      icon: "success",
-      title: "Domicilio guardado",
-      text: "El domicilio fue registrado correctamente.",
-      confirmButtonColor: "#2563eb",
-    });
-
-    // Actualizar historial
-    setOrganizacionSeleccionada("");
-
-    // Limpiar formulario
-    setFormData({
-      cliente: "",
-      direccion: "",
-      telefono: "",
-      valor: "",
-      propina: "",
-      metodo_pago: "",
-      observaciones: "",
-    });
-
-    setSubmitted(false);
-    setError("");
   };
   const cargarDomicilios = async (organizacionId) => {
     if (!usuario?.id || !organizacionId) {
@@ -698,43 +744,62 @@ export default function DomiciliarioDashboard() {
       showConfirmButton: false,
     });
   };
-  const buscarCliente = async (telefono) => {
-    if (telefono.length !== 10) {
+  const buscarCliente = async (valor) => {
+    const busqueda = valor.trim();
+    console.log("Buscando cliente:", busqueda);
+    if (!busqueda) {
+      setClientesEncontrados([]);
       setClienteEncontrado(null);
       setClienteNoEncontrado(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from("clientes")
-      .select("*")
-      .eq("telefono", telefono)
-      .maybeSingle();
+    try {
+      const organizacionId = organizacionSeleccionada;
 
-    if (error || !data) {
-      setClienteEncontrado(null);
-      setClienteNoEncontrado(true);
+      console.log("ORGANIZACIÓN SELECCIONADA:", organizacionId);
 
-      setFormData((prev) => ({
-        ...prev,
-        cliente: "",
-        direccion: "",
-      }));
+      if (!organizacionId) {
+        console.log("NO HAY ORGANIZACIÓN SELECCIONADA");
+        setClientesEncontrados([]);
+        return;
+      }
 
-      return;
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, nombre, telefono, direccion")
+        .or(`nombre.ilike.%${busqueda}%,telefono.ilike.%${busqueda}%`)
+        .order("nombre", { ascending: true })
+        .limit(5);
+      console.log("RESULTADOS CLIENTES:", data);
+      console.log("ERROR CLIENTES:", error);
+      if (error) {
+        console.error("Error buscando clientes:", error);
+        setClientesEncontrados([]);
+        return;
+      }
+
+      setClientesEncontrados(data || []);
+      setClienteNoEncontrado(!data || data.length === 0);
+    } catch (error) {
+      console.error("Error inesperado buscando cliente:", error);
+      setClientesEncontrados([]);
     }
-
-    setClienteEncontrado(data);
+  };
+  const seleccionarCliente = (cliente) => {
+    setClienteEncontrado(cliente);
+    setClientesEncontrados([]);
     setClienteNoEncontrado(false);
+
+    setTelefonoBusqueda(cliente.telefono);
 
     setFormData((prev) => ({
       ...prev,
-      cliente: data.nombre || "",
-      direccion: data.direccion || "",
-      telefono: data.telefono || "",
+      cliente: cliente.nombre,
+      telefono: cliente.telefono,
+      direccion: cliente.direccion,
     }));
   };
-
   const cerrarDia = async () => {
     const totalDomicilios = domicilios.length;
 
@@ -1518,21 +1583,59 @@ export default function DomiciliarioDashboard() {
                 <TruckIcon />
               </div>
             </section>
+            <section className={styles.lqSearchWrapper}>
+              <section className={styles.lqSearchContainer}>
+                <MagnifyingGlassIcon className={styles.lqSearchIcon} />
 
-            <section className={styles.lqSearchContainer}>
-              <MagnifyingGlassIcon className={styles.lqSearchIcon} />
-              <input
-                type="tel"
-                placeholder="Buscar cliente por teléfono..."
-                value={telefonoBusqueda}
-                onChange={(e) => {
-                  const telefono = e.target.value.replace(/\D/g, "");
+                <input
+                  type="text"
+                  placeholder="Buscar cliente por nombre o teléfono..."
+                  value={telefonoBusqueda}
+                  onChange={(e) => {
+                    const valor = e.target.value;
 
-                  setTelefonoBusqueda(telefono);
-                  buscarCliente(telefono);
-                }}
-              />
+                    setTelefonoBusqueda(valor);
+                    buscarCliente(valor);
+                  }}
+                />
+              </section>
+
+              {clientesEncontrados.length > 0 && (
+                <div className={styles.lqClientesDropdown}>
+                  {clientesEncontrados.map((cliente) => (
+                    <button
+                      type="button"
+                      key={cliente.id}
+                      className={styles.lqClienteOption}
+                      onClick={() => seleccionarCliente(cliente)}
+                    >
+                      <div className={styles.lqClienteOptionIcon}>
+                        <UserIcon />
+                      </div>
+
+                      <div className={styles.lqClienteOptionInfo}>
+                        <strong>{cliente.nombre}</strong>
+
+                        <span>
+                          {cliente.telefono} · {cliente.direccion}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {clienteNoEncontrado &&
+                telefonoBusqueda.trim() !== "" &&
+                clientesEncontrados.length === 0 && (
+                  <div className={styles.lqClientesDropdown}>
+                    <div className={styles.lqClienteSinResultados}>
+                      No se encontraron clientes
+                    </div>
+                  </div>
+                )}
             </section>
+
             <section className={styles.lqStatsBar}>
               <div className={styles.lqStatsItem}>
                 <span>Domicilios</span>
@@ -1568,36 +1671,6 @@ export default function DomiciliarioDashboard() {
                 )}
               </div>
             </section>
-            {clienteEncontrado && (
-              <div className={styles.lqClienteCard}>
-                <div className={styles.lqClienteHeader}>
-                  <UserIcon className={styles.lqClienteIcon} />
-                  <div>
-                    <h3>{clienteEncontrado.nombre}</h3>
-                    <span>Cliente encontrado</span>
-                  </div>
-                </div>
-
-                <div className={styles.lqClienteInfo}>
-                  <p>
-                    <strong>Teléfono:</strong> {clienteEncontrado.telefono}
-                  </p>
-
-                  <p>
-                    <strong>Dirección:</strong> {clienteEncontrado.direccion}
-                  </p>
-                </div>
-              </div>
-            )}
-            {clienteNoEncontrado && (
-              <div className={styles.lqClienteNoEncontrado}>
-                <h3>Cliente no encontrado</h3>
-                <p>
-                  No existe ningún cliente registrado con ese número de
-                  teléfono.
-                </p>
-              </div>
-            )}
             <section className={styles.lqContent}>
               <div className={styles.lqFormCard}>
                 <h2>Nuevo Domicilio</h2>

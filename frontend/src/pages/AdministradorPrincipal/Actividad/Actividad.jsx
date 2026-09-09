@@ -12,9 +12,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-import {
-  obtenerActividades,
-} from "../../../services/actividadService";
+import { obtenerActividades } from "../../../services/actividadService";
 
 import styles from "./Actividad.module.css";
 
@@ -29,18 +27,45 @@ export default function Actividad() {
   // ==========================================
   // CARGAR ACTIVIDADES
   // ==========================================
+  const obtenerOrganizacionActual = async (userId) => {
+    const { data, error } = await supabase
+      .from("usuarios_organizaciones")
+      .select(
+        `
+      organizacion_id,
+      organizaciones (
+        id,
+        nombre,
+        organizacion_principal_id
+      )
+    `,
+      )
+      .eq("usuario_id", userId)
+      .eq("estado", "activo")
+      .limit(1)
+      .maybeSingle();
 
+    if (error) {
+      console.error("Error obteniendo organización actual:", error);
+      return null;
+    }
+
+    if (!data?.organizacion_id) {
+      console.error("El usuario no tiene una organización asignada.");
+      return null;
+    }
+
+    console.log("ORGANIZACIÓN ACTUAL:", data.organizaciones);
+
+    return data.organizacion_id;
+  };
   const cargarActividades = async () => {
     setCargando(true);
 
-    const { data, error } =
-      await obtenerActividades();
+    const { data, error } = await obtenerActividades();
 
     if (error) {
-      console.error(
-        "Error cargando actividades:",
-        error,
-      );
+      console.error("Error cargando actividades:", error);
 
       setActividades([]);
     } else {
@@ -60,16 +85,13 @@ export default function Actividad() {
 
   const actividadesFiltradas = useMemo(() => {
     return actividades.filter((actividad) => {
-      const nombreUsuario =
-        actividad.usuarios?.nombre?.toLowerCase() || "";
+      const nombreUsuario = actividad.usuarios?.nombre?.toLowerCase() || "";
 
-      const textoActividad =
-        `${actividad.accion || ""} ${
-          actividad.descripcion || ""
-        }`.toLowerCase();
+      const textoActividad = `${actividad.accion || ""} ${
+        actividad.descripcion || ""
+      }`.toLowerCase();
 
-      const textoBusqueda =
-        busqueda.toLowerCase().trim();
+      const textoBusqueda = busqueda.toLowerCase().trim();
 
       const coincideBusqueda =
         !textoBusqueda ||
@@ -77,31 +99,17 @@ export default function Actividad() {
         textoActividad.includes(textoBusqueda);
 
       const coincideTipo =
-        tipoFiltro === "todos" ||
-        actividad.tipo === tipoFiltro;
+        tipoFiltro === "todos" || actividad.tipo === tipoFiltro;
 
       const fechaActividad = actividad.created_at
-        ? new Date(actividad.created_at)
-            .toISOString()
-            .split("T")[0]
+        ? new Date(actividad.created_at).toISOString().split("T")[0]
         : "";
 
-      const coincideFecha =
-        !fechaFiltro ||
-        fechaActividad === fechaFiltro;
+      const coincideFecha = !fechaFiltro || fechaActividad === fechaFiltro;
 
-      return (
-        coincideBusqueda &&
-        coincideTipo &&
-        coincideFecha
-      );
+      return coincideBusqueda && coincideTipo && coincideFecha;
     });
-  }, [
-    actividades,
-    busqueda,
-    tipoFiltro,
-    fechaFiltro,
-  ]);
+  }, [actividades, busqueda, tipoFiltro, fechaFiltro]);
 
   // ==========================================
   // LIMPIAR FILTROS
@@ -113,10 +121,7 @@ export default function Actividad() {
     setFechaFiltro("");
   };
 
-  const hayFiltros =
-    busqueda ||
-    tipoFiltro !== "todos" ||
-    fechaFiltro;
+  const hayFiltros = busqueda || tipoFiltro !== "todos" || fechaFiltro;
 
   // ==========================================
   // ICONO SEGÚN EL TIPO
@@ -140,9 +145,7 @@ export default function Actividad() {
         return <Cog6ToothIcon />;
 
       case "sistema":
-        return (
-          <ArrowRightStartOnRectangleIcon />
-        );
+        return <ArrowRightStartOnRectangleIcon />;
 
       case "cierre":
         return <ClipboardDocumentListIcon />;
@@ -191,42 +194,32 @@ export default function Actividad() {
   const formatearFecha = (fecha) => {
     if (!fecha) return "Sin fecha";
 
-    return new Date(fecha).toLocaleString(
-      "es-CO",
-      {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      },
-    );
+    return new Date(fecha).toLocaleString("es-CO", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   // ==========================================
   // ESTADÍSTICAS
   // ==========================================
 
-  const totalActividades =
-    actividadesFiltradas.length;
+  const totalActividades = actividadesFiltradas.length;
 
-  const actividadesDomicilios =
-    actividadesFiltradas.filter(
-      (actividad) =>
-        actividad.tipo === "domicilio",
-    ).length;
+  const actividadesDomicilios = actividadesFiltradas.filter(
+    (actividad) => actividad.tipo === "domicilio",
+  ).length;
 
-  const actividadesPagos =
-    actividadesFiltradas.filter(
-      (actividad) =>
-        actividad.tipo === "pago",
-    ).length;
+  const actividadesPagos = actividadesFiltradas.filter(
+    (actividad) => actividad.tipo === "pago",
+  ).length;
 
-  const actividadesCierres =
-    actividadesFiltradas.filter(
-      (actividad) =>
-        actividad.tipo === "cierre",
-    ).length;
+  const actividadesCierres = actividadesFiltradas.filter(
+    (actividad) => actividad.tipo === "cierre",
+  ).length;
 
   return (
     <div className={styles.contenedor}>
@@ -238,10 +231,7 @@ export default function Actividad() {
         <div>
           <h1>Actividad</h1>
 
-          <p>
-            Historial de acciones realizadas en
-            Liquisistema.
-          </p>
+          <p>Historial de acciones realizadas en Liquisistema.</p>
         </div>
 
         <div className={styles.contador}>
@@ -251,9 +241,7 @@ export default function Actividad() {
 
           <span>
             actividad
-            {totalActividades !== 1
-              ? "es"
-              : ""}
+            {totalActividades !== 1 ? "es" : ""}
           </span>
         </div>
       </div>
@@ -270,9 +258,7 @@ export default function Actividad() {
 
           <div>
             <span>Total</span>
-            <strong>
-              {totalActividades}
-            </strong>
+            <strong>{totalActividades}</strong>
           </div>
         </div>
 
@@ -283,9 +269,7 @@ export default function Actividad() {
 
           <div>
             <span>Domicilios</span>
-            <strong>
-              {actividadesDomicilios}
-            </strong>
+            <strong>{actividadesDomicilios}</strong>
           </div>
         </div>
 
@@ -296,9 +280,7 @@ export default function Actividad() {
 
           <div>
             <span>Pagos</span>
-            <strong>
-              {actividadesPagos}
-            </strong>
+            <strong>{actividadesPagos}</strong>
           </div>
         </div>
 
@@ -309,9 +291,7 @@ export default function Actividad() {
 
           <div>
             <span>Cierres</span>
-            <strong>
-              {actividadesCierres}
-            </strong>
+            <strong>{actividadesCierres}</strong>
           </div>
         </div>
       </div>
@@ -328,50 +308,30 @@ export default function Actividad() {
             type="text"
             placeholder="Buscar actividad..."
             value={busqueda}
-            onChange={(e) =>
-              setBusqueda(e.target.value)
-            }
+            onChange={(e) => setBusqueda(e.target.value)}
           />
         </div>
 
         <div className={styles.selectWrapper}>
           <select
             value={tipoFiltro}
-            onChange={(e) =>
-              setTipoFiltro(e.target.value)
-            }
+            onChange={(e) => setTipoFiltro(e.target.value)}
           >
-            <option value="todos">
-              Todos los tipos
-            </option>
+            <option value="todos">Todos los tipos</option>
 
-            <option value="domicilio">
-              Domicilios
-            </option>
+            <option value="domicilio">Domicilios</option>
 
-            <option value="pago">
-              Pagos
-            </option>
+            <option value="pago">Pagos</option>
 
-            <option value="reporte">
-              Reportes
-            </option>
+            <option value="reporte">Reportes</option>
 
-            <option value="usuario">
-              Usuarios
-            </option>
+            <option value="usuario">Usuarios</option>
 
-            <option value="cierre">
-              Cierres
-            </option>
+            <option value="cierre">Cierres</option>
 
-            <option value="configuracion">
-              Configuración
-            </option>
+            <option value="configuracion">Configuración</option>
 
-            <option value="sistema">
-              Sistema
-            </option>
+            <option value="sistema">Sistema</option>
           </select>
         </div>
 
@@ -381,17 +341,12 @@ export default function Actividad() {
           <input
             type="date"
             value={fechaFiltro}
-            onChange={(e) =>
-              setFechaFiltro(e.target.value)
-            }
+            onChange={(e) => setFechaFiltro(e.target.value)}
           />
         </div>
 
         {hayFiltros && (
-          <button
-            className={styles.btnLimpiar}
-            onClick={limpiarFiltros}
-          >
+          <button className={styles.btnLimpiar} onClick={limpiarFiltros}>
             <XMarkIcon />
             Limpiar
           </button>
@@ -406,18 +361,13 @@ export default function Actividad() {
         <div className={styles.estado}>
           <div className={styles.spinner}></div>
 
-          <p>
-            Cargando actividades...
-          </p>
+          <p>Cargando actividades...</p>
         </div>
-      ) : actividadesFiltradas.length ===
-        0 ? (
+      ) : actividadesFiltradas.length === 0 ? (
         <div className={styles.vacio}>
           <ClipboardDocumentListIcon />
 
-          <h2>
-            No hay actividades
-          </h2>
+          <h2>No hay actividades</h2>
 
           <p>
             {hayFiltros
@@ -427,84 +377,43 @@ export default function Actividad() {
         </div>
       ) : (
         <div className={styles.lista}>
-          {actividadesFiltradas.map(
-            (actividad) => (
-              <div
-                key={actividad.id}
-                className={styles.actividad}
-              >
-                {/* Línea de tiempo */}
+          {actividadesFiltradas.map((actividad) => (
+            <div key={actividad.id} className={styles.actividad}>
+              {/* Línea de tiempo */}
 
-                <div
-                  className={styles.linea}
-                ></div>
+              <div className={styles.linea}></div>
 
-                {/* Icono */}
+              {/* Icono */}
 
-                <div className={styles.icono}>
-                  {obtenerIcono(
-                    actividad.tipo,
-                  )}
-                </div>
+              <div className={styles.icono}>{obtenerIcono(actividad.tipo)}</div>
 
-                {/* Contenido */}
+              {/* Contenido */}
 
-                <div
-                  className={
-                    styles.contenido
-                  }
-                >
-                  <div
-                    className={
-                      styles.parteSuperior
-                    }
-                  >
-                    <div>
-                      <h3>
-                        {actividad.accion ||
-                          "Actividad"}
-                      </h3>
+              <div className={styles.contenido}>
+                <div className={styles.parteSuperior}>
+                  <div>
+                    <h3>{actividad.accion || "Actividad"}</h3>
 
-                      <span
-                        className={
-                          styles.tipo
-                        }
-                      >
-                        {obtenerNombreTipo(
-                          actividad.tipo,
-                        )}
-                      </span>
-                    </div>
-
-                    <time>
-                      {formatearFecha(
-                        actividad.created_at,
-                      )}
-                    </time>
-                  </div>
-
-                  <p>
-                    {actividad.descripcion ||
-                      "Sin descripción."}
-                  </p>
-
-                  <div
-                    className={
-                      styles.usuario
-                    }
-                  >
-                    <UserIcon />
-
-                    <span>
-                      {actividad.usuarios
-                        ?.nombre ||
-                        "Usuario del sistema"}
+                    <span className={styles.tipo}>
+                      {obtenerNombreTipo(actividad.tipo)}
                     </span>
                   </div>
+
+                  <time>{formatearFecha(actividad.created_at)}</time>
+                </div>
+
+                <p>{actividad.descripcion || "Sin descripción."}</p>
+
+                <div className={styles.usuario}>
+                  <UserIcon />
+
+                  <span>
+                    {actividad.usuarios?.nombre || "Usuario del sistema"}
+                  </span>
                 </div>
               </div>
-            ),
-          )}
+            </div>
+          ))}
         </div>
       )}
     </div>

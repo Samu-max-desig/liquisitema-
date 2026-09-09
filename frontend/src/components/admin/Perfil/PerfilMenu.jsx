@@ -18,8 +18,9 @@ export default function PerfilMenu() {
   const menuRef = useRef(null);
 
   // ==========================================
-  // CARGAR USUARIO ACTUAL
+  // CARGAR USUARIO Y ORGANIZACIÓN ACTUAL
   // ==========================================
+
   useEffect(() => {
     const cargarUsuario = async () => {
       try {
@@ -45,7 +46,18 @@ export default function PerfilMenu() {
 
         const { data: usuarioDB, error: usuarioError } = await supabase
           .from("usuarios")
-          .select("*")
+          .select(
+            `
+            id,
+            nombre,
+            telefono,
+            direccion,
+            documento,
+            correo,
+            rol,
+            estado
+          `,
+          )
           .eq("id", user.id)
           .single();
 
@@ -71,35 +83,64 @@ export default function PerfilMenu() {
         }
 
         // ==========================================
-        // 4. VERIFICAR ORGANIZACIÓN
+        // 4. BUSCAR ORGANIZACIÓN MEDIANTE
+        // usuarios_organizaciones
         // ==========================================
 
-        if (!usuarioDB.organizacion_id) {
-          console.warn("El usuario no tiene organización asignada");
+        const { data: relacion, error: relacionError } = await supabase
+          .from("usuarios_organizaciones")
+          .select(
+            `
+            organizacion_id,
+            rol,
+            estado,
+            organizaciones (
+              id,
+              nombre,
+              nit,
+              organizacion_principal_id
+            )
+          `,
+          )
+          .eq("usuario_id", user.id)
+          .eq("estado", "activo")
+          .limit(1)
+          .maybeSingle();
+
+        if (relacionError) {
+          console.error(
+            "Error cargando relación usuario-organización:",
+            JSON.stringify(relacionError, null, 2),
+          );
+
+          setOrganizacion(null);
+          return;
+        }
+
+        console.log("Relación usuario-organización:", relacion);
+
+        // ==========================================
+        // 5. VERIFICAR QUE EXISTA ORGANIZACIÓN
+        // ==========================================
+
+        if (!relacion?.organizaciones) {
+          console.warn("El usuario no tiene una organización activa asignada.");
+
           setOrganizacion(null);
           return;
         }
 
         // ==========================================
-        // 5. BUSCAR ORGANIZACIÓN
+        // 6. GUARDAR ORGANIZACIÓN
         // ==========================================
 
-        const { data: organizacionDB, error: organizacionError } =
-          await supabase
-            .from("organizaciones")
-            .select("id, nombre, nit")
-            .eq("id", usuarioDB.organizacion_id)
-            .single();
+        const organizacionDB = relacion.organizaciones;
 
-        if (organizacionError) {
-          console.error(
-            "Error cargando organización:",
-            JSON.stringify(organizacionError, null, 2),
-          );
-          return;
-        }
-
-        console.log("Organización DB:", organizacionDB);
+        console.log("Organización actual:", organizacionDB);
+        console.log(
+          "Organización primaria:",
+          organizacionDB.organizacion_principal_id,
+        );
 
         setOrganizacion(organizacionDB);
       } catch (error) {
@@ -148,6 +189,7 @@ export default function PerfilMenu() {
   return (
     <div className="perfil-container" ref={menuRef}>
       {/* ICONO ORIGINAL 👤 */}
+
       <button
         className={`perfil-button ${abierto ? "activo" : ""}`}
         type="button"
@@ -158,9 +200,11 @@ export default function PerfilMenu() {
       </button>
 
       {/* MENÚ */}
+
       {abierto && (
         <div className="perfil-menu">
           {/* CABECERA */}
+
           <div className="perfil-header">
             <div className="perfil-avatar">{inicial}</div>
 
@@ -174,8 +218,10 @@ export default function PerfilMenu() {
           <div className="perfil-separador" />
 
           {/* INFORMACIÓN */}
+
           <div className="perfil-info">
             {/* DOCUMENTO */}
+
             <div className="perfil-dato">
               <div className="perfil-icono">
                 <IdentificationIcon />
@@ -189,6 +235,7 @@ export default function PerfilMenu() {
             </div>
 
             {/* CORREO */}
+
             <div className="perfil-dato">
               <div className="perfil-icono">
                 <EnvelopeIcon />
@@ -202,6 +249,7 @@ export default function PerfilMenu() {
             </div>
 
             {/* ORGANIZACIÓN */}
+
             <div className="perfil-dato">
               <div className="perfil-icono">
                 <BuildingOffice2Icon />
@@ -214,7 +262,7 @@ export default function PerfilMenu() {
                   {organizacion?.nombre ||
                     (usuario?.rol === "super_admin"
                       ? "Panel general"
-                      : "Cargando...")}
+                      : "Sin organización")}
                 </strong>
               </div>
             </div>
@@ -223,9 +271,11 @@ export default function PerfilMenu() {
           <div className="perfil-separador" />
 
           {/* MI PERFIL */}
+
           <button className="perfil-opcion" type="button">
             <div>
               <UserCircleIcon />
+
               <span>Mi perfil</span>
             </div>
 
@@ -233,6 +283,7 @@ export default function PerfilMenu() {
           </button>
 
           {/* CONFIGURACIÓN */}
+
           <button className="perfil-opcion" type="button">
             <div>
               <span className="perfil-config-icon">⚙</span>

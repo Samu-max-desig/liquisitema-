@@ -174,31 +174,6 @@
   height: 100%;
 }
 
-.lqSearchContainer {
-  background: white;
-  border-radius: 16px;
-  padding: 14px 18px;
-
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  margin-bottom: 20px;
-}
-
-.lqSearchContainer input {
-  border: none;
-  outline: none;
-  width: 100%;
-  font-size: 15px;
-}
-
-.lqSearchIcon {
-  width: 20px;
-  height: 20px;
-  color: #64748b;
-}
-
 .lqContent {
   display: grid;
   grid-template-columns: 1fr 1.3fr;
@@ -2267,4 +2242,189 @@ CELULARES PEQUEÑOS
 
 :global(.swal2-container) {
   z-index: 2147483647 !important;
+}
+
+/* =========================
+   BUSCADOR DE CLIENTES
+========================= */
+
+.lqSearchContainer {
+  position: relative;
+  z-index: 1000;
+  background: white;
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.lqSearchContainer input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 18px;
+  color: #111827;
+}
+
+.lqSearchContainer input::placeholder {
+  color: #64748b;
+}
+
+.lqSearchIcon {
+  width: 24px;
+  height: 24px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+
+/* =========================
+   DROPDOWN DE CLIENTES
+========================= */
+
+.lqClientesDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+
+  padding: 6px;
+
+  max-height: 300px;
+  overflow-y: auto;
+
+  z-index: 9999;
+}
+
+
+/* =========================
+   CLIENTE
+========================= */
+
+.lqClienteOption {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 12px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: transparent;
+
+  text-align: left;
+  cursor: pointer;
+
+  transition: background 0.15s ease;
+}
+
+.lqClienteOption:hover {
+  background: #f1f5f9;
+}
+
+
+/* =========================
+   ICONO DEL CLIENTE
+========================= */
+
+.lqClienteOptionIcon {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  background: #eff6ff;
+  color: #2563eb;
+
+  border-radius: 50%;
+}
+
+.lqClienteOptionIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+
+/* =========================
+   INFORMACIÓN DEL CLIENTE
+========================= */
+
+.lqClienteOptionInfo {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lqClienteOptionInfo strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.lqClienteOptionInfo span {
+  font-size: 14px;
+  color: #64748b;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* =========================
+   CLIENTE NO ENCONTRADO
+========================= */
+
+.lqClienteNoEncontrado {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+
+  padding: 16px;
+
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+
+  z-index: 9999;
+}
+
+.lqClienteNoEncontrado h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.lqClienteNoEncontrado p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.lqSearchWrapper {
+  position: relative;
+  width: 100%;
+  z-index: 1000;
 }
