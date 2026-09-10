@@ -220,7 +220,7 @@ export default function Usuarios() {
         accion: "editar",
         descripcion: `Editó la información del usuario ${usuarioEditando.nombre}.`,
         referenciaId: null,
-        organizacionId: usuarioActual?.organizacion_id,
+        organizacionId: organizacionActualId,
         usuarioAfectadoId: usuarioEditando.id,
       });
     }
@@ -229,13 +229,13 @@ export default function Usuarios() {
     // REGISTRAR CAMBIO DE ESTADO
     // ==========================================
 
-    if (cambioEstado) {
+    if (cambioInformacion) {
       await registrarActividad({
         tipo: "usuario",
-        accion: "cambio_estado",
-        descripcion: `Cambió el estado del usuario ${usuarioEditando.nombre} de ${usuarioOriginal?.estado} a ${usuarioEditando.estado}.`,
+        accion: "editar",
+        descripcion: `Editó la información del usuario ${usuarioEditando.nombre}.`,
         referenciaId: null,
-        organizacionId: usuarioActual?.organizacion_id,
+        organizacionId: organizacionActualId,
         usuarioAfectadoId: usuarioEditando.id,
       });
     }
@@ -249,7 +249,7 @@ export default function Usuarios() {
       texto: "Usuario actualizado correctamente.",
     });
 
-    await cargarUsuarios();
+    await cargarUsuarios(organizacionActualId);
 
     setEditandoUsuario(false);
 
@@ -405,10 +405,8 @@ export default function Usuarios() {
 
     if (!usuarioActual?.id) {
       console.error("No hay usuario autenticado.");
-
       setUsuarios([]);
       setCargando(false);
-
       return;
     }
 
@@ -431,7 +429,8 @@ export default function Usuarios() {
         correo,
         rol,
         estado,
-        created_at
+        created_at,
+        organizacion_id
       `,
         )
         .order("created_at", {
@@ -440,19 +439,15 @@ export default function Usuarios() {
 
       if (error) {
         console.error("Error cargando usuarios:", error);
-
         setUsuarios([]);
         setCargando(false);
-
         return;
       }
 
       setUsuarios(data || []);
-
       console.log("USUARIOS SUPER ADMIN:", data);
 
       setCargando(false);
-
       return;
     }
 
@@ -462,72 +457,145 @@ export default function Usuarios() {
 
     if (!organizacionIdParam) {
       console.error("El administrador no tiene una organización asignada.");
-
       setUsuarios([]);
       setCargando(false);
-
       return;
     }
 
     console.log("ADMIN → CARGANDO USUARIOS DE:", organizacionIdParam);
 
-    const { data, error } = await supabase
+    // ==========================================
+    // 1. USUARIOS DIRECTOS
+    // usuarios.organizacion_id
+    // ==========================================
+
+    const { data: usuariosDirectos, error: errorDirectos } = await supabase
       .from("usuarios")
       .select(
         `
-      id,
-      nombre,
-      telefono,
-      direccion,
-      documento,
-      correo,
-      rol,
-      estado,
-      created_at,
-
-      usuarios_organizaciones!inner (
-        organizacion_id,
+        id,
+        nombre,
+        telefono,
+        direccion,
+        documento,
+        correo,
         rol,
-        estado
+        estado,
+        created_at,
+        organizacion_id
+      `,
       )
-    `,
-      )
-      .eq("usuarios_organizaciones.organizacion_id", organizacionIdParam)
-      .eq("usuarios_organizaciones.estado", "activo")
+      .eq("organizacion_id", organizacionIdParam)
       .order("created_at", {
         ascending: false,
       });
 
-    if (error) {
-      console.error("Error cargando usuarios:", error);
-
-      setUsuarios([]);
-      setCargando(false);
-
-      return;
+    if (errorDirectos) {
+      console.error("Error cargando usuarios directos:", errorDirectos);
     }
 
-    setUsuarios(data || []);
+    console.log("👤 USUARIOS DIRECTOS:", usuariosDirectos || []);
 
-    console.log("USUARIOS DE LA ORGANIZACIÓN:", data);
+    // ==========================================
+    // 2. USUARIOS COMPARTIDOS
+    // usuarios_organizaciones
+    // ==========================================
 
+    const { data: relaciones, error: errorRelaciones } = await supabase
+      .from("usuarios_organizaciones")
+      .select("usuario_id, organizacion_id, rol, estado")
+      .eq("organizacion_id", organizacionIdParam)
+      .eq("estado", "activo");
+
+    if (errorRelaciones) {
+      console.error("Error cargando relaciones de usuarios:", errorRelaciones);
+    }
+
+    console.log("🔗 RELACIONES DE USUARIOS:", relaciones || []);
+
+    // ==========================================
+    // 3. BUSCAR LOS USUARIOS DE LAS RELACIONES
+    // ==========================================
+
+    let usuariosCompartidos = [];
+
+    const idsCompartidos = [
+      ...new Set(
+        (relaciones || [])
+          .map((relacion) => relacion.usuario_id)
+          .filter(Boolean),
+      ),
+    ];
+
+    if (idsCompartidos.length > 0) {
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select(
+          `
+        id,
+        nombre,
+        telefono,
+        direccion,
+        documento,
+        correo,
+        rol,
+        estado,
+        created_at,
+        organizacion_id
+      `,
+        )
+        .in("id", idsCompartidos);
+
+      if (error) {
+        console.error("Error cargando usuarios compartidos:", error);
+      } else {
+        usuariosCompartidos = data || [];
+      }
+    }
+
+    console.log("🔗 USUARIOS COMPARTIDOS:", usuariosCompartidos);
+
+    // ==========================================
+    // 4. UNIR DIRECTOS + COMPARTIDOS
+    // ==========================================
+
+    const usuariosFinales = [
+      ...(usuariosDirectos || []),
+      ...usuariosCompartidos,
+    ];
+
+    // ==========================================
+    // 5. ELIMINAR DUPLICADOS
+    // ==========================================
+
+    const usuariosUnicos = Array.from(
+      new Map(usuariosFinales.map((usuario) => [usuario.id, usuario])).values(),
+    );
+
+    // ==========================================
+    // 6. ORDENAR MÁS RECIENTES PRIMERO
+    // ==========================================
+
+    usuariosUnicos.sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    );
+
+    console.log("✅ USUARIOS FINALES:", usuariosUnicos);
+
+    setUsuarios(usuariosUnicos);
     setCargando(false);
   };
   useEffect(() => {
-    if (!usuarioActual?.id || usuarioActual.rol !== "admin") {
+    if (
+      !usuarioActual?.id ||
+      usuarioActual.rol !== "admin" ||
+      !organizacionActualId
+    ) {
       return;
     }
 
-    const cargarSolicitudesPendientes = async (organizacionActualId) => {
+    const cargarSolicitudesPendientes = async () => {
       try {
-        if (!organizacionActualId) {
-          console.warn(
-            "⚠️ No se pueden cargar solicitudes: no hay organización actual",
-          );
-          setSolicitudesPendientes([]);
-          return;
-        }
-
         console.log(
           "📨 CARGANDO SOLICITUDES PARA ORGANIZACIÓN:",
           organizacionActualId,
@@ -537,114 +605,91 @@ export default function Usuarios() {
           .from("solicitudes_usuarios")
           .select(
             `
-        id,
-        usuario_id,
-        organizacion_origen_id,
-        organizacion_destino_id,
-        enviado_por,
-        estado,
-        created_at,
-        usuarios:usuario_id (
           id,
-          nombre
-        ),
-        organizaciones:organizacion_origen_id (
-          id,
-          nombre
-        )
-      `,
+          usuario_id,
+          organizacion_origen_id,
+          organizacion_destino_id,
+          enviado_por,
+          estado,
+          created_at,
+          usuarios:usuario_id (
+            id,
+            nombre
+          ),
+          organizaciones:organizacion_origen_id (
+            id,
+            nombre
+          )
+        `,
           )
           .eq("organizacion_destino_id", organizacionActualId)
           .eq("estado", "pendiente")
-          .order("created_at", { ascending: false });
+          .order("created_at", {
+            ascending: false,
+          });
 
         if (error) {
           console.error("❌ Error cargando solicitudes pendientes:", error);
-
-          setSolicitudesPendientes([]);
+          setSolicitudEntrante(null);
           return;
         }
 
         console.log("📨 Solicitudes pendientes:", data);
 
-        setSolicitudesPendientes(data || []);
+        if (data?.length > 0) {
+          setSolicitudEntrante(data[0]);
+        } else {
+          setSolicitudEntrante(null);
+        }
       } catch (error) {
         console.error("❌ Error inesperado cargando solicitudes:", error);
 
-        setSolicitudesPendientes([]);
+        setSolicitudEntrante(null);
       }
     };
 
+    cargarSolicitudesPendientes();
+
     const canal = supabase
-      .channel(`solicitudes-usuarios-${usuarioActual.id}`)
+      .channel(
+        `solicitudes-usuarios-${usuarioActual.id}-${organizacionActualId}`,
+      )
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "solicitudes_usuarios",
+          filter: `organizacion_destino_id=eq.${organizacionActualId}`,
         },
         async (payload) => {
+          console.log("📡 CAMBIO EN SOLICITUDES:", payload);
+
           const solicitud = payload.new;
 
           if (
-            payload.eventType === "INSERT" &&
-            solicitud.organizacion_destino_id ===
-              usuarioActual.organizacion_id &&
-            solicitud.estado === "pendiente"
+            solicitud?.organizacion_destino_id === organizacionActualId &&
+            solicitud?.estado === "pendiente"
           ) {
-            const { data } = await supabase
-              .from("solicitudes_usuarios")
-              .select(
-                `
-              id,
-              usuario_id,
-              organizacion_origen_id,
-              organizacion_destino_id,
-              enviado_por,
-              estado,
-              created_at,
-              usuarios:usuario_id (
-                id,
-                nombre
-              ),
-              organizaciones:organizacion_origen_id (
-                id,
-                nombre
-              )
-            `,
-              )
-              .eq("id", solicitud.id)
-              .single();
-
-            if (data) {
-              setSolicitudEntrante(data);
-            }
+            await cargarSolicitudesPendientes();
           }
 
           if (
             payload.eventType === "UPDATE" &&
-            solicitud.organizacion_origen_id ===
-              usuarioActual.organizacion_id &&
-            solicitud.estado === "rechazada"
+            solicitud?.organizacion_origen_id === organizacionActualId &&
+            solicitud?.estado === "rechazada"
           ) {
-            const nombreUsuario = solicitud.usuario_id;
-
             const { data: usuario } = await supabase
               .from("usuarios")
               .select("nombre")
-              .eq("id", nombreUsuario)
-              .single();
-
-            const { data: organizacion } = await supabase
-              .from("organizaciones")
-              .select("nombre")
-              .eq("id", solicitud.organizacion_destino_id)
-              .single();
+              .eq("id", solicitud.usuario_id)
+              .maybeSingle();
 
             setMensaje({
               tipo: "error",
-              texto: `${organizacion?.nombre || "El administrador"} no aceptó recibir a ${usuario?.nombre || "el usuario"}.`,
+              texto: `La organización rechazó recibir a ${
+                usuario?.nombre || "el usuario"
+              }.`,
             });
           }
         },
@@ -654,7 +699,7 @@ export default function Usuarios() {
     return () => {
       supabase.removeChannel(canal);
     };
-  }, []);
+  }, [organizacionActualId]);
 
   // ==========================================
   // FILTRAR USUARIOS
@@ -810,12 +855,12 @@ export default function Usuarios() {
     // ==========================================
     // REGISTRAR ACTIVIDAD DE CREACIÓN
     // ==========================================
-
     await registrarActividad({
       tipo: "usuario",
       accion: "crear",
       descripcion: `Creó el usuario ${nuevoUsuario.nombre} con rol ${nuevoUsuario.rol}.`,
       referenciaId: null,
+      organizacionId: organizacionActualId,
     });
 
     // ==========================================
@@ -827,7 +872,7 @@ export default function Usuarios() {
       texto: "Usuario creado correctamente.",
     });
 
-    await cargarUsuarios();
+    await cargarUsuarios(organizacionActualId);
 
     setCreandoUsuario(false);
 
@@ -868,19 +913,33 @@ export default function Usuarios() {
       return;
     }
 
-    if (!usuarioActual?.organizacion_id) {
+    if (!organizacionActualId) {
       setMensajeCompartir({
         tipo: "error",
-        texto: "Tu administrador no tiene una organización asignada.",
+        texto: "No se pudo determinar la organización actual.",
+      });
+      return;
+    }
+
+    // Evitar compartir consigo misma
+    if (organizacionDestino === organizacionActualId) {
+      setMensajeCompartir({
+        tipo: "error",
+        texto: "No puedes compartir el usuario con la misma organización.",
       });
       return;
     }
 
     setCompartiendoUsuario(true);
 
+    console.log("📤 COMPARTIENDO USUARIO");
+    console.log("USUARIO:", usuarioCompartir.id);
+    console.log("ORIGEN:", organizacionActualId);
+    console.log("DESTINO:", organizacionDestino);
+
     const { error } = await supabase.from("solicitudes_usuarios").insert({
       usuario_id: usuarioCompartir.id,
-      organizacion_origen_id: usuarioActual.organizacion_id,
+      organizacion_origen_id: organizacionActualId,
       organizacion_destino_id: organizacionDestino,
       enviado_por: usuarioActual.id,
       estado: "pendiente",
@@ -910,7 +969,9 @@ export default function Usuarios() {
       tipo: "usuario",
       accion: "compartir",
       descripcion: `Solicitó compartir al usuario ${usuarioCompartir.nombre}.`,
-      referenciaId: usuarioCompartir.id,
+      referenciaId: null,
+      organizacionId: organizacionActualId,
+      usuarioAfectadoId: usuarioCompartir.id,
     });
 
     setMensajeCompartir({
@@ -966,16 +1027,19 @@ export default function Usuarios() {
         tipo: "usuario",
         accion: "compartir_aceptado",
         descripcion: `Aceptó recibir al usuario ${solicitudEntrante.usuarios?.nombre || "domiciliario"}.`,
-        referenciaId: solicitudEntrante.usuario_id,
+        referenciaId: null,
+        organizacionId: organizacionActualId,
+        usuarioAfectadoId: solicitudEntrante.usuario_id,
       });
-
-      await cargarUsuarios();
+      await cargarUsuarios(organizacionActualId);
     } else {
       await registrarActividad({
         tipo: "usuario",
         accion: "compartir_rechazado",
         descripcion: `Rechazó recibir al usuario ${solicitudEntrante.usuarios?.nombre || "domiciliario"}.`,
-        referenciaId: solicitudEntrante.usuario_id,
+        referenciaId: null,
+        organizacionId: organizacionActualId,
+        usuarioAfectadoId: solicitudEntrante.usuario_id,
       });
     }
 

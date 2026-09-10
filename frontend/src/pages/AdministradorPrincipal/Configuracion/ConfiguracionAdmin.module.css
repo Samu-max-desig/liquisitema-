@@ -1,0 +1,349 @@
+.contenedor {
+  min-height: 100%;
+  padding: 32px;
+  background: #f8fafc;
+}
+
+/* ==========================================
+   ENCABEZADO
+   ========================================== */
+
+.encabezado {
+  margin-bottom: 32px;
+}
+
+.etiqueta {
+  display: inline-block;
+  margin-bottom: 8px;
+
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 0.8px;
+}
+
+.encabezado h1 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 30px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.encabezado p {
+  margin: 8px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ==========================================
+   CONTENIDO
+   ========================================== */
+
+.contenido {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.introduccion {
+  margin-bottom: 20px;
+}
+
+.introduccion h2 {
+  margin: 0;
+
+  color: #1e293b;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.introduccion p {
+  margin: 5px 0 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+/* ==========================================
+   GRID
+   ========================================== */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* ==========================================
+   TARJETAS
+   ========================================== */
+
+.tarjeta {
+  width: 100%;
+  min-height: 190px;
+
+  padding: 22px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  text-align: left;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+
+  cursor: pointer;
+
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.tarjeta:hover {
+  transform: translateY(-2px);
+
+  border-color: #bfdbfe;
+
+  box-shadow:
+    0 10px 25px rgba(15, 23, 42, 0.08),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.tarjetaActiva {
+  border-color: #93c5fd;
+
+  background: #fafdff;
+
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+}
+
+/* ==========================================
+   PARTE SUPERIOR DE TARJETA
+   ========================================== */
+
+.tarjetaSuperior {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.icono {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.icono svg {
+  width: 23px;
+  height: 23px;
+}
+
+.flecha {
+  width: 18px;
+  height: 18px;
+
+  color: #94a3b8;
+
+  transition:
+    transform 0.18s ease,
+    color 0.18s ease;
+}
+
+.tarjeta:hover .flecha {
+  color: #2563eb;
+  transform: translateX(3px);
+}
+
+/* ==========================================
+   TEXTO
+   ========================================== */
+
+.tarjetaTexto {
+  margin-top: 24px;
+}
+
+.tarjetaTexto h3 {
+  margin: 0;
+
+  color: #1e293b;
+
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.tarjetaTexto p {
+  margin: 7px 0 0;
+
+  max-width: 500px;
+
+  color: #64748b;
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ==========================================
+   AVISO TEMPORAL
+   ========================================== */
+
+.aviso {
+  margin-top: 20px;
+  padding: 16px 18px;
+
+  display: flex;
+  align-items: center;
+
+  background: #ffffff;
+
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.aviso > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aviso strong {
+  color: #1e293b;
+
+  font-size: 14px;
+}
+
+.aviso span {
+  color: #64748b;
+
+  font-size: 12px;
+}
+.botonVolver {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  margin-bottom: 18px;
+  padding: 8px 12px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #64748b;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.botonVolver:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #2563eb;
+}
+
+.botonVolver svg {
+  width: 17px;
+  height: 17px;
+}
+/* ==========================================
+   SECCIÓN ACTIVA
+   ========================================== */
+
+.seccionActiva {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.botonRegresar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  margin-bottom: 20px;
+  padding: 8px 12px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #64748b;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.botonRegresar:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #2563eb;
+}
+
+.botonRegresar svg {
+  width: 17px;
+  height: 17px;
+}
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 850px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .contenedor {
+    padding: 22px 16px;
+  }
+
+  .encabezado h1 {
+    font-size: 26px;
+  }
+
+  .tarjeta {
+    min-height: 175px;
+    padding: 19px;
+  }
+}

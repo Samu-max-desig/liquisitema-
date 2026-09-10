@@ -1,0 +1,534 @@
+/* =========================================================
+   CONTENEDOR
+========================================================= */
+
+.contenedor {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 0 40px;
+  box-sizing: border-box;
+}
+
+.encabezado {
+  margin-bottom: 28px;
+}
+
+.encabezado h2 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #14213d;
+}
+
+.encabezado p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+}
+
+
+/* =========================================================
+   CARGANDO
+========================================================= */
+
+.cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  color: #64748b;
+  font-size: 15px;
+}
+
+
+/* =========================================================
+   SECCIONES
+========================================================= */
+
+.seccion {
+  background: #ffffff;
+  border: 1px solid #e5eaf1;
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 22px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.tituloSeccion {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 24px;
+}
+
+.tituloSeccion h3 {
+  margin: 0 0 5px;
+  color: #14213d;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.tituloSeccion p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   SWITCH
+========================================================= */
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  min-width: 48px;
+  height: 26px;
+  margin-top: 2px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  background: #cbd5e1;
+  border-radius: 999px;
+  transition: 0.2s ease;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.2);
+  transition: 0.2s ease;
+}
+
+.switch input:checked + .slider {
+  background: #2563eb;
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(22px);
+}
+
+
+/* =========================================================
+   HORARIOS
+========================================================= */
+
+.horarios {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.campo label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.campo input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border: 1px solid #d8e0ea;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.campo input:hover {
+  border-color: #b8c5d6;
+}
+
+.campo input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+
+/* =========================================================
+   DÍAS DE TRABAJO
+========================================================= */
+
+.dias {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dias > label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.listaDias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dia {
+  min-width: 92px;
+  padding: 10px 15px;
+  border: 1px solid #d8e0ea;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.dia:hover {
+  border-color: #93b4ef;
+  background: #f8fbff;
+}
+
+.diaActivo {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.diaActivo:hover {
+  background: #e8f1ff;
+}
+
+
+/* =========================================================
+   INFORMACIÓN
+========================================================= */
+
+.info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 13px 15px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.info span {
+  flex-shrink: 0;
+  color: #2563eb;
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.info p {
+  margin: 0;
+  color: #526277;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   ESTADÍSTICAS
+========================================================= */
+
+.listaEstadisticas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 76px;
+  padding: 15px;
+  box-sizing: border-box;
+  border: 1px solid #e1e7ef;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.opcion:hover {
+  border-color: #b8ccef;
+  background: #f8fbff;
+}
+
+.opcion input {
+  width: 17px;
+  height: 17px;
+  margin: 2px 0 0;
+  accent-color: #2563eb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.opcion span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.opcion strong {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.opcion small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+
+/* =========================================================
+   PIE / GUARDAR
+========================================================= */
+
+.pie {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.mensaje {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.botonGuardar {
+  height: 46px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;
+  color: white;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+  transition: all 0.18s ease;
+}
+
+.botonGuardar:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+}
+
+.botonGuardar:active {
+  transform: translateY(0);
+}
+
+.botonGuardar:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* =====================================================
+   MESES DE TRABAJO
+===================================================== */
+
+.meses {
+  margin-top: 28px;
+}
+
+.subtituloBloque {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.subtituloBloque label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.subtituloBloque span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.listaMeses {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mes {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #6b7280;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.mes:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.mesActivo {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* =====================================================
+   PERÍODO DE ESTADÍSTICAS
+===================================================== */
+
+.periodos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.periodo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+
+  text-align: left;
+  cursor: pointer;
+
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.periodo:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.periodo strong {
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.periodo span {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6b7280;
+}
+
+.periodoActivo {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.periodoActivo strong {
+  color: #2563eb;
+}
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 800px) {
+  .seccion {
+    padding: 22px;
+  }
+
+  .horarios {
+    grid-template-columns: 1fr;
+  }
+
+  .listaEstadisticas {
+    grid-template-columns: 1fr;
+  }
+
+  .tituloSeccion {
+    gap: 15px;
+  }
+}
+
+@media (max-width: 520px) {
+  .contenedor {
+    padding-bottom: 25px;
+  }
+
+  .encabezado h2 {
+    font-size: 24px;
+  }
+
+  .seccion {
+    padding: 18px;
+    border-radius: 13px;
+  }
+
+  .listaDias {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dia {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pie {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .botonGuardar {
+    width: 100%;
+  }
+
+  .mensaje {
+    text-align: center;
+  }
+}

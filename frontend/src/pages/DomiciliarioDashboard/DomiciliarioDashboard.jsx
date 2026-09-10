@@ -274,7 +274,10 @@ export default function DomiciliarioDashboard() {
 
     setSubmitted(true);
 
-    // Validaciones ANTES de bloquear el botón
+    // ==========================================
+    // VALIDACIONES
+    // ==========================================
+
     if (
       !formData.cliente.trim() ||
       !formData.direccion.trim() ||
@@ -305,21 +308,26 @@ export default function DomiciliarioDashboard() {
     }
 
     setError("");
-
-    // Ahora sí bloqueamos el botón
     setGuardandoDomicilio(true);
 
     try {
-      // Número de factura
+      // ==========================================
+      // NÚMERO DE FACTURA
+      // ==========================================
+
       const numeroFactura = `FAC-${Date.now()}`;
 
-      // Buscar si el cliente ya existe
-      const { data: clienteExistente } = await supabase
-        .from("clientes")
-        .select("id")
-        .eq("telefono", formData.telefono)
-        .eq("organizacion_id", organizacionSeleccionada)
-        .maybeSingle();
+      // ==========================================
+      // BUSCAR CLIENTE
+      // ==========================================
+
+      const { data: clienteExistente, error: buscarClienteError } =
+        await supabase
+          .from("clientes")
+          .select("id")
+          .eq("telefono", formData.telefono.trim())
+          .eq("organizacion_id", organizacionSeleccionada)
+          .maybeSingle();
 
       if (buscarClienteError) {
         console.error("Error buscando cliente:", buscarClienteError);
@@ -328,65 +336,92 @@ export default function DomiciliarioDashboard() {
         return;
       }
 
-      // Crear cliente si no existe
+      let clienteId = clienteExistente?.id;
+
       if (!clienteExistente) {
-        const { data: nuevoCliente, error: clienteError } = await supabase
-          .from("clientes")
-          .insert([
-            {
-              nombre: formData.cliente,
-              telefono: formData.telefono,
-              direccion: formData.direccion,
-              organizacion_id: organizacionSeleccionada,
-            },
-          ])
-          .select("id")
-          .single();
+        const { data: nuevoCliente, error: clienteError } = await supabase.rpc(
+          "crear_cliente_para_organizacion",
+          {
+            p_nombre: formData.cliente.trim(),
+            p_telefono: formData.telefono.trim(),
+            p_direccion: formData.direccion.trim(),
+            p_organizacion_id: organizacionSeleccionada,
+          },
+        );
 
         if (clienteError) {
-          console.error("Error creando cliente:", clienteError);
-          setError("No se pudo registrar el cliente.");
+          console.error("========== ERROR CREANDO CLIENTE ==========");
+          console.error("ERROR:", clienteError);
+          console.error("CODE:", clienteError.code);
+          console.error("MESSAGE:", clienteError.message);
+          console.error("DETAILS:", clienteError.details);
+          console.error("HINT:", clienteError.hint);
+          console.error("==========================================");
+
+          setError(clienteError.message || "No se pudo registrar el cliente.");
+
           return;
         }
 
-        // Registrar actividad del nuevo cliente
+        if (!nuevoCliente || !nuevoCliente.id) {
+          console.error(
+            "El RPC no devolvió correctamente el cliente:",
+            nuevoCliente,
+          );
+
+          setError(
+            "El cliente fue creado, pero no se pudo obtener su información.",
+          );
+
+          return;
+        }
+
+        clienteId = nuevoCliente.id;
+
+        console.log("✅ CLIENTE CREADO:", nuevoCliente);
+
         await registrarActividad({
           usuarioId: usuario.id,
           tipo: "cliente",
           accion: "crear",
           descripcion: `Agregó al nuevo cliente ${formData.cliente}.`,
-          referenciaId: nuevoCliente.id,
+          referenciaId: clienteId,
           organizacionId: organizacionSeleccionada,
         });
       }
 
-      // Guardar domicilio
-      const { data: domicilioCreado, error: supabaseError } = await supabase
+      // ==========================================
+      // GUARDAR DOMICILIO
+      // ==========================================
+
+      const { data: domicilioCreado, error: domicilioError } = await supabase
         .from("domicilios")
         .insert([
           {
             numero_factura: numeroFactura,
-            cliente: formData.cliente,
-            telefono: formData.telefono,
-            direccion: formData.direccion,
-            costo: formData.valor,
+            cliente: formData.cliente.trim(),
+            telefono: formData.telefono.trim(),
+            direccion: formData.direccion.trim(),
+            costo: Number(formData.valor),
             metodo_pago: formData.metodo_pago,
             observaciones: formData.observaciones,
 
-            // Otro = Pendiente
+            // "Otro" = Pendiente
             // Los demás métodos = Pagado
             estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
 
             domiciliario_id: usuario.id,
+
+            // El domicilio pertenece únicamente
+            // a la organización seleccionada.
             organizacion_id: organizacionSeleccionada,
           },
         ])
         .select()
         .single();
 
-      // Error guardando domicilio
-      if (supabaseError) {
-        console.error("Error guardando domicilio:", supabaseError);
+      if (domicilioError) {
+        console.error("Error guardando domicilio:", domicilioError);
 
         setError("Error al guardar el domicilio.");
         return;
@@ -394,7 +429,12 @@ export default function DomiciliarioDashboard() {
 
       console.log("🏢 ORGANIZACIÓN DEL DOMICILIO:", organizacionSeleccionada);
 
-      // Registrar actividad del domicilio
+      console.log("👤 CLIENTE DEL DOMICILIO:", clienteId);
+
+      // ==========================================
+      // REGISTRAR ACTIVIDAD DEL DOMICILIO
+      // ==========================================
+
       await registrarActividad({
         usuarioId: usuario.id,
         tipo: "domicilio",
@@ -404,14 +444,17 @@ export default function DomiciliarioDashboard() {
         organizacionId: organizacionSeleccionada,
       });
 
-      // Si no pagó → crear o acumular deuda
+      // ==========================================
+      // CREAR / ACUMULAR PENDIENTE
+      // ==========================================
+
       if (formData.metodo_pago === "Otro") {
         const { error: pendienteError } = await supabase.rpc(
           "crear_o_acumular_pendiente",
           {
-            p_cliente: formData.cliente,
-            p_telefono: formData.telefono,
-            p_direccion: formData.direccion,
+            p_cliente: formData.cliente.trim(),
+            p_telefono: formData.telefono.trim(),
+            p_direccion: formData.direccion.trim(),
             p_monto: Number(formData.valor),
             p_domicilio_id: domicilioCreado.id,
           },
@@ -437,7 +480,10 @@ export default function DomiciliarioDashboard() {
         }
       }
 
-      // Éxito
+      // ==========================================
+      // ÉXITO
+      // ==========================================
+
       await Swal.fire({
         icon: "success",
         title: "Domicilio guardado",
@@ -445,10 +491,16 @@ export default function DomiciliarioDashboard() {
         confirmButtonColor: "#2563eb",
       });
 
-      // Limpiar organización
+      // ==========================================
+      // LIMPIAR ORGANIZACIÓN
+      // ==========================================
+
       setOrganizacionSeleccionada("");
 
-      // Limpiar formulario
+      // ==========================================
+      // LIMPIAR FORMULARIO
+      // ==========================================
+
       setFormData({
         cliente: "",
         direccion: "",
@@ -459,7 +511,10 @@ export default function DomiciliarioDashboard() {
         observaciones: "",
       });
 
-      // Limpiar buscador
+      // ==========================================
+      // LIMPIAR BUSCADOR
+      // ==========================================
+
       setTelefonoBusqueda("");
       setClientesEncontrados([]);
       setClienteEncontrado(null);
@@ -472,7 +527,10 @@ export default function DomiciliarioDashboard() {
 
       setError("Ocurrió un error inesperado al guardar el domicilio.");
     } finally {
-      // 🔥 SIEMPRE desbloquea el botón
+      // ==========================================
+      // DESBLOQUEAR BOTÓN SIEMPRE
+      // ==========================================
+
       setGuardandoDomicilio(false);
     }
   };
@@ -527,70 +585,159 @@ export default function DomiciliarioDashboard() {
     if (!usuario?.id) return;
 
     try {
+      console.log("USUARIO ID DOMICILIARIO:", usuario.id);
+
       // ==========================================
-      // OBTENER ORGANIZACIONES DEL USUARIO
+      // 1. OBTENER ORGANIZACIÓN DEL USUARIO
       // ==========================================
 
-      const { data: relaciones, error: relacionesError } = await supabase
-        .from("usuarios_organizaciones")
-        .select(
-          `
-          organizacion_id,
-          organizaciones (
-            id,
-            nombre,
-            estado
-          )
-        `,
-        )
-        .eq("usuario_id", usuario.id)
-        .eq("estado", "activo");
+      const { data: usuarioActual, error: usuarioError } = await supabase
+        .from("usuarios")
+        .select("organizacion_id")
+        .eq("id", usuario.id)
+        .single();
 
-      if (relacionesError) {
+      if (usuarioError) {
         console.error(
-          "Error obteniendo organizaciones del usuario:",
-          relacionesError,
+          "Error obteniendo organización del usuario:",
+          usuarioError,
         );
+
+        setOrganizaciones([]);
+        setOrganizacionSeleccionada("");
+        return;
+      }
+
+      console.log("USUARIO ACTUAL:", usuarioActual);
+
+      if (!usuarioActual?.organizacion_id) {
+        console.error("El usuario no tiene una organización asignada.");
+
+        setOrganizaciones([]);
+        setOrganizacionSeleccionada("");
         return;
       }
 
       // ==========================================
-      // FILTRAR ORGANIZACIONES ACTIVAS
+      // 2. OBTENER LA ORGANIZACIÓN DEL USUARIO
       // ==========================================
 
-      const organizacionesUsuario = (relaciones || [])
-        .map((relacion) => relacion.organizaciones)
-        .filter(
-          (organizacion) => organizacion && organizacion.estado === "activa",
+      const { data: organizacionesPrueba, error: organizacionError } =
+        await supabase
+          .from("organizaciones")
+          .select("id, nombre, estado, organizacion_principal_id")
+          .eq("id", usuarioActual.organizacion_id);
+
+      console.log("ORGANIZACIONES PRUEBA:", organizacionesPrueba);
+      console.log("ERROR ORGANIZACIONES:", organizacionError);
+
+      const organizacionUsuario = organizacionesPrueba?.[0] || null;
+
+      if (organizacionError) {
+        console.error(
+          "Error obteniendo organización del domiciliario:",
+          organizacionError,
         );
 
-      console.log("ORGANIZACIONES DEL USUARIO:", organizacionesUsuario);
+        setOrganizaciones([]);
+        setOrganizacionSeleccionada("");
+        return;
+      }
 
-      setOrganizaciones(organizacionesUsuario);
+      console.log("ORGANIZACIÓN DEL DOMICILIARIO:", organizacionUsuario);
+
+      if (!organizacionUsuario) {
+        console.error("No se encontró la organización del domiciliario.");
+
+        setOrganizaciones([]);
+        setOrganizacionSeleccionada("");
+        return;
+      }
 
       // ==========================================
-      // SELECCIONAR ORGANIZACIÓN
+      // 3. OBTENER LA ORGANIZACIÓN PRINCIPAL
       // ==========================================
 
-      if (organizacionesUsuario.length === 1) {
-        // Si solo pertenece a una organización,
-        // la seleccionamos automáticamente.
-        setOrganizacionSeleccionada(organizacionesUsuario[0].id);
-      } else if (organizacionesUsuario.length > 1) {
-        // Si pertenece a varias, no forzamos ninguna.
-        // El domiciliario podrá escoger.
+      const organizacionPrincipalId =
+        organizacionUsuario.organizacion_principal_id;
+
+      if (!organizacionPrincipalId) {
+        console.error(
+          "La organización del domiciliario no tiene organización principal.",
+        );
+
+        setOrganizaciones([]);
+        setOrganizacionSeleccionada("");
+        return;
+      }
+
+      console.log("ORGANIZACIÓN PRINCIPAL:", organizacionPrincipalId);
+
+      // ==========================================
+      // 4. OBTENER TODAS LAS ORGANIZACIONES
+      //    DE ESA MISMA ORGANIZACIÓN PRINCIPAL
+      // ==========================================
+
+      const { data: organizacionesHijas, error: hijasError } = await supabase
+        .from("organizaciones")
+        .select("id, nombre, estado, organizacion_principal_id")
+        .eq("organizacion_principal_id", organizacionPrincipalId)
+        .eq("estado", "activa")
+        .order("nombre", { ascending: true });
+
+      if (hijasError) {
+        console.error(
+          "Error obteniendo organizaciones de la organización principal:",
+          hijasError,
+        );
+
+        setOrganizaciones([]);
+        setOrganizacionSeleccionada("");
+        return;
+      }
+
+      console.log(
+        "ORGANIZACIONES DE LA ORGANIZACIÓN PRINCIPAL:",
+        organizacionesHijas,
+      );
+
+      // ==========================================
+      // 5. GUARDAR ORGANIZACIONES
+      // ==========================================
+
+      setOrganizaciones(organizacionesHijas || []);
+
+      // ==========================================
+      // 6. SELECCIONAR ORGANIZACIÓN
+      // ==========================================
+
+      if (organizacionesHijas?.length === 1) {
+        // Solo existe una organización
+        setOrganizacionSeleccionada(organizacionesHijas[0].id);
+      } else if (organizacionesHijas?.length > 1) {
+        // Hay varias organizaciones.
+        // No seleccionamos automáticamente.
+        setOrganizacionSeleccionada("");
+      } else {
+        console.error(
+          "La organización principal no tiene organizaciones activas.",
+        );
+
         setOrganizacionSeleccionada("");
       }
     } catch (error) {
       console.error("Error inesperado cargando organizaciones:", error);
+
+      setOrganizaciones([]);
+      setOrganizacionSeleccionada("");
     }
   };
+
   useEffect(() => {
     if (!usuario?.id) return;
 
     cargarOrganizaciones();
   }, [usuario?.id]);
-
   useEffect(() => {
     if (!usuario?.id || !organizacionSeleccionada) return;
 

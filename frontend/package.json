@@ -13,11 +13,14 @@
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.112.3",
     "howler": "^2.2.4",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.2.8",
     "react-countup": "^6.5.3",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
-    "sweetalert2": "^11.26.25"
+    "sweetalert2": "^11.26.25",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

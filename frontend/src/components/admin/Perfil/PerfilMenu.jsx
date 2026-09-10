@@ -9,23 +9,23 @@ import {
 
 import { supabase } from "../../../config/supabase";
 import "./PerfilMenu.css";
-
+import { useNavigate } from "react-router-dom";
 export default function PerfilMenu() {
   const [abierto, setAbierto] = useState(false);
   const [usuario, setUsuario] = useState(null);
   const [organizacion, setOrganizacion] = useState(null);
 
   const menuRef = useRef(null);
-
+  const navigate = useNavigate();
   // ==========================================
-  // CARGAR USUARIO Y ORGANIZACIÓN ACTUAL
+  // CARGAR USUARIO Y ORGANIZACIÓN
   // ==========================================
 
   useEffect(() => {
     const cargarUsuario = async () => {
       try {
         // ==========================================
-        // 1. OBTENER USUARIO AUTENTICADO
+        // 1. USUARIO AUTENTICADO
         // ==========================================
 
         const {
@@ -38,7 +38,7 @@ export default function PerfilMenu() {
           return;
         }
 
-        console.log("Usuario Auth:", user.id);
+        console.log("👤 Usuario Auth:", user.id);
 
         // ==========================================
         // 2. BUSCAR USUARIO EN usuarios
@@ -55,7 +55,8 @@ export default function PerfilMenu() {
             documento,
             correo,
             rol,
-            estado
+            estado,
+            organizacion_id
           `,
           )
           .eq("id", user.id)
@@ -63,13 +64,13 @@ export default function PerfilMenu() {
 
         if (usuarioError) {
           console.error(
-            "Error cargando usuario:",
+            "❌ Error cargando usuario:",
             JSON.stringify(usuarioError, null, 2),
           );
           return;
         }
 
-        console.log("Usuario DB:", usuarioDB);
+        console.log("✅ Usuario DB:", usuarioDB);
 
         setUsuario(usuarioDB);
 
@@ -78,73 +79,118 @@ export default function PerfilMenu() {
         // ==========================================
 
         if (usuarioDB.rol === "super_admin") {
+          console.log("👑 Usuario Super Admin");
           setOrganizacion(null);
           return;
         }
 
         // ==========================================
-        // 4. BUSCAR ORGANIZACIÓN MEDIANTE
-        // usuarios_organizaciones
+        // 4. DETERMINAR ORGANIZACIÓN
+        //
+        // Puede venir de:
+        //
+        // A) usuarios.organizacion_id
+        // B) usuarios_organizaciones
+        //
+        // Para administradores como Edith,
+        // normalmente viene de B.
+        // ==========================================
+
+        let organizacionId = usuarioDB.organizacion_id || null;
+
+        // ==========================================
+        // 5. BUSCAR RELACIÓN USUARIO-ORGANIZACIÓN
         // ==========================================
 
         const { data: relacion, error: relacionError } = await supabase
           .from("usuarios_organizaciones")
           .select(
             `
+            id,
+            usuario_id,
             organizacion_id,
             rol,
-            estado,
-            organizaciones (
-              id,
-              nombre,
-              nit,
-              organizacion_principal_id
-            )
+            estado
           `,
           )
           .eq("usuario_id", user.id)
           .eq("estado", "activo")
+          .order("id", { ascending: true })
           .limit(1)
           .maybeSingle();
 
         if (relacionError) {
           console.error(
-            "Error cargando relación usuario-organización:",
+            "❌ Error buscando relación usuario-organización:",
             JSON.stringify(relacionError, null, 2),
+          );
+        } else if (relacion) {
+          console.log("🔗 Relación encontrada:", relacion);
+
+          // La relación tiene prioridad
+          if (relacion.organizacion_id) {
+            organizacionId = relacion.organizacion_id;
+          }
+        }
+
+        // ==========================================
+        // 6. VERIFICAR ORGANIZACIÓN
+        // ==========================================
+
+        if (!organizacionId) {
+          console.warn("⚠️ El usuario no tiene organización asignada.");
+
+          setOrganizacion(null);
+          return;
+        }
+
+        console.log("🏢 ID organización:", organizacionId);
+
+        // ==========================================
+        // 7. OBTENER ORGANIZACIÓN MEDIANTE RPC
+        // ==========================================
+
+        const { data: organizacionDB, error: organizacionError } =
+          await supabase.rpc("obtener_organizacion_por_id", {
+            p_organizacion_id: organizacionId,
+          });
+
+        if (organizacionError) {
+          console.error(
+            "❌ Error cargando organización:",
+            JSON.stringify(organizacionError, null, 2),
           );
 
           setOrganizacion(null);
           return;
         }
 
-        console.log("Relación usuario-organización:", relacion);
-
         // ==========================================
-        // 5. VERIFICAR QUE EXISTA ORGANIZACIÓN
+        // 8. EL RPC DEVUELVE UN ARRAY
+        //
+        // Convertimos el primer elemento en objeto
         // ==========================================
 
-        if (!relacion?.organizaciones) {
-          console.warn("El usuario no tiene una organización activa asignada.");
+        const organizacionEncontrada = Array.isArray(organizacionDB)
+          ? organizacionDB[0]
+          : organizacionDB;
+
+        if (!organizacionEncontrada) {
+          console.warn("⚠️ No se encontró la organización:", organizacionId);
 
           setOrganizacion(null);
           return;
         }
 
+        console.log("✅ Organización encontrada:", organizacionEncontrada);
+
         // ==========================================
-        // 6. GUARDAR ORGANIZACIÓN
+        // 9. GUARDAR SOLO EL OBJETO
         // ==========================================
 
-        const organizacionDB = relacion.organizaciones;
-
-        console.log("Organización actual:", organizacionDB);
-        console.log(
-          "Organización primaria:",
-          organizacionDB.organizacion_principal_id,
-        );
-
-        setOrganizacion(organizacionDB);
+        setOrganizacion(organizacionEncontrada);
       } catch (error) {
-        console.error("Error cargando perfil:", error);
+        console.error("❌ Error cargando perfil:", error);
       }
     };
 
@@ -186,9 +232,13 @@ export default function PerfilMenu() {
           ? "Domiciliario"
           : "Usuario";
 
+  // ==========================================
+  // RENDER
+  // ==========================================
+
   return (
     <div className="perfil-container" ref={menuRef}>
-      {/* ICONO ORIGINAL 👤 */}
+      {/* ICONO PERFIL */}
 
       <button
         className={`perfil-button ${abierto ? "activo" : ""}`}
@@ -258,12 +308,7 @@ export default function PerfilMenu() {
               <div>
                 <span>Organización</span>
 
-                <strong>
-                  {organizacion?.nombre ||
-                    (usuario?.rol === "super_admin"
-                      ? "Panel general"
-                      : "Sin organización")}
-                </strong>
+                <strong>{organizacion?.nombre ?? "Sin organización"}</strong>
               </div>
             </div>
           </div>
@@ -275,7 +320,6 @@ export default function PerfilMenu() {
           <button className="perfil-opcion" type="button">
             <div>
               <UserCircleIcon />
-
               <span>Mi perfil</span>
             </div>
 
@@ -284,7 +328,14 @@ export default function PerfilMenu() {
 
           {/* CONFIGURACIÓN */}
 
-          <button className="perfil-opcion" type="button">
+          <button
+            className="perfil-opcion"
+            type="button"
+            onClick={() => {
+              setAbierto(false);
+              navigate("/configuracion-admin");
+            }}
+          >
             <div>
               <span className="perfil-config-icon">⚙</span>
 
