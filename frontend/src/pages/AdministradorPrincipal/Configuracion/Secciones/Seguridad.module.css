@@ -1,0 +1,312 @@
+.seguridad {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 10px 0 40px;
+}
+
+.encabezado {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.iconoEncabezado {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.iconoEncabezado svg {
+  width: 27px;
+  height: 27px;
+}
+
+.etiqueta {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.encabezado h2 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.encabezado p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* ==========================================
+   MENSAJES
+   ========================================== */
+
+.mensaje {
+  margin-bottom: 20px;
+  padding: 13px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mensajeError {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.mensajeExito {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+/* ==========================================
+   TARJETAS
+   ========================================== */
+
+.tarjeta {
+  margin-bottom: 20px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.tarjetaEncabezado {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.iconoTarjeta {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.iconoTarjeta svg {
+  width: 22px;
+  height: 22px;
+}
+
+.tarjetaEncabezado h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.tarjetaEncabezado p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* ==========================================
+   FORMULARIOS
+   ========================================== */
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.campo label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.campo input,
+.campo select {
+  width: 100%;
+  height: 44px;
+  padding: 0 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.campo input:focus,
+.campo select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.campo input::placeholder {
+  color: #94a3b8;
+}
+
+/* ==========================================
+   INPUT PASSWORD
+   ========================================== */
+
+.inputWrapper {
+  position: relative;
+}
+
+.inputWrapper input {
+  padding-right: 46px;
+}
+
+.botonMostrar {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.botonMostrar:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.botonMostrar svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* ==========================================
+   BOTONES
+   ========================================== */
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.botonPrincipal,
+.botonSecundario {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    background 0.2s;
+}
+
+.botonPrincipal {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.botonPrincipal:hover {
+  background: #4338ca;
+}
+
+.botonSecundario {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.botonSecundario:hover {
+  background: #e2e8f0;
+}
+
+.botonPrincipal svg,
+.botonSecundario svg {
+  width: 18px;
+  height: 18px;
+}
+
+.botonPrincipal:disabled,
+.botonSecundario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 700px) {
+  .seguridad {
+    padding: 5px 0 30px;
+  }
+
+  .encabezado h2 {
+    font-size: 21px;
+  }
+
+  .tarjeta {
+    padding: 18px;
+  }
+
+  .fila {
+    grid-template-columns: 1fr;
+  }
+
+  .acciones {
+    justify-content: stretch;
+  }
+
+  .botonPrincipal,
+  .botonSecundario {
+    width: 100%;
+  }
+}

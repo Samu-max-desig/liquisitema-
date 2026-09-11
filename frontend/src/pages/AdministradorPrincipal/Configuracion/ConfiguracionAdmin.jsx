@@ -9,11 +9,11 @@ import {
   ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
-
+import SoporteDiagnostico from "./Secciones/SoporteDiagnostico";
 import styles from "./ConfiguracionAdmin.module.css";
-
+import Notificaciones from "./Secciones/Notificaciones";
 import PreferenciasTrabajo from "./Secciones/PreferenciasTrabajo";
-
+import Seguridad from "./Secciones/Seguridad";
 const secciones = [
   {
     id: "preferencias",
@@ -66,6 +66,12 @@ function ConfiguracionAdmin() {
       case "preferencias":
         return <PreferenciasTrabajo />;
 
+      case "notificaciones":
+        return <Notificaciones />;
+      case "seguridad":
+        return <Seguridad />;
+      case "soporte":
+        return <SoporteDiagnostico />;
       default:
         return null;
     }

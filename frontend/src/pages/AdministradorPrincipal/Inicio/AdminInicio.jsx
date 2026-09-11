@@ -887,41 +887,127 @@ export default function AdminInicio() {
   // CARGAR INGRESOS REALES
   // =========================================================
 
+  // =========================================================
+  // CARGAR INGRESOS REALES
+  // =========================================================
+
   const cargarIngresos = async (organizacionId, ahora, prefs) => {
     try {
       if (!organizacionId) return;
 
       const horaInicio = prefs?.horaInicio || "08:00";
 
+      const diasTrabajo = prefs?.diasTrabajo || {
+        lunes: true,
+        martes: true,
+        miercoles: true,
+        jueves: true,
+        viernes: true,
+        sabado: true,
+        domingo: false,
+      };
+
+      const mesesTrabajo = prefs?.mesesTrabajo || {
+        enero: true,
+        febrero: true,
+        marzo: true,
+        abril: true,
+        mayo: true,
+        junio: true,
+        julio: true,
+        agosto: true,
+        septiembre: true,
+        octubre: true,
+        noviembre: true,
+        diciembre: true,
+      };
+
+      const nombresDias = [
+        "domingo",
+        "lunes",
+        "martes",
+        "miercoles",
+        "jueves",
+        "viernes",
+        "sabado",
+      ];
+
+      const nombresMeses = [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+      ];
+
+      // =========================================================
+      // HORA DE INICIO
+      // =========================================================
+
+      const [hora, minuto] = horaInicio.substring(0, 5).split(":").map(Number);
+
       const fechaActual = new Date(ahora);
 
-      const horaActual = fechaActual.getHours() * 60 + fechaActual.getMinutes();
+      const minutosActuales =
+        fechaActual.getHours() * 60 + fechaActual.getMinutes();
 
-      const [hora, minuto] = horaInicio.split(":").map(Number);
+      const minutosInicio = hora * 60 + minuto;
 
-      const inicioMinutos = hora * 60 + minuto;
+      // =========================================================
+      // FECHA DE LA JORNADA ACTUAL
+      //
+      // Antes de la hora de inicio seguimos viendo la jornada
+      // anterior.
+      //
+      // Ejemplo:
+      // 10 de septiembre 08:00
+      // jornada = 9 de septiembre
+      //
+      // 10 de septiembre 08:30
+      // jornada = 10 de septiembre
+      // =========================================================
 
-      /*
-       * Determinar la jornada actual.
-       *
-       * Si todavía no ha llegado la hora de inicio,
-       * seguimos dentro de la jornada del día anterior.
-       */
       const fechaJornada = new Date(fechaActual);
 
-      if (horaActual < inicioMinutos) {
+      if (minutosActuales < minutosInicio) {
         fechaJornada.setDate(fechaJornada.getDate() - 1);
       }
 
-      const fechaJornadaISO = [
-        fechaJornada.getFullYear(),
-        String(fechaJornada.getMonth() + 1).padStart(2, "0"),
-        String(fechaJornada.getDate()).padStart(2, "0"),
-      ].join("-");
+      fechaJornada.setHours(0, 0, 0, 0);
 
-      /*
-       * Las estadísticas son la fuente de los ingresos.
-       */
+      // =========================================================
+      // HELPERS
+      // =========================================================
+
+      const convertirISO = (fecha) => {
+        return [
+          fecha.getFullYear(),
+          String(fecha.getMonth() + 1).padStart(2, "0"),
+          String(fecha.getDate()).padStart(2, "0"),
+        ].join("-");
+      };
+
+      const esDiaTrabajo = (fecha) => {
+        const nombreDia = nombresDias[fecha.getDay()];
+        return diasTrabajo[nombreDia] !== false;
+      };
+
+      const esMesTrabajo = (fecha) => {
+        const nombreMes = nombresMeses[fecha.getMonth()];
+        return mesesTrabajo[nombreMes] !== false;
+      };
+
+      // =========================================================
+      // OBTENER ESTADÍSTICAS
+      // =========================================================
+
       const { data, error } = await supabase
         .from("estadisticas_organizacion")
         .select(
@@ -940,13 +1026,10 @@ export default function AdminInicio() {
 
       const estadisticas = data || [];
 
-      /*
-       * Total de ingresos de una jornada.
-       *
-       * IMPORTANTE:
-       * "otro" es método de pago.
-       * "pendientes" NO se suma aquí.
-       */
+      // =========================================================
+      // TOTAL DE UNA JORNADA
+      // =========================================================
+
       const obtenerTotal = (fila) => {
         return (
           Number(fila?.efectivo || 0) +
@@ -956,130 +1039,141 @@ export default function AdminInicio() {
         );
       };
 
-      /*
-       * DÍAS DE TRABAJO CONFIGURADOS
-       */
-      const diasTrabajo = prefs?.diasTrabajo || {
-        lunes: true,
-        martes: true,
-        miercoles: true,
-        jueves: true,
-        viernes: true,
-        sabado: true,
-        domingo: false,
-      };
+      // =========================================================
+      // HOY
+      //
+      // Se reinicia cuando comienza una nueva jornada.
+      //
+      // Ejemplo:
+      // Jueves 08:30 -> empieza nuevo "Hoy"
+      // =========================================================
 
-      const nombresDias = [
-        "domingo",
-        "lunes",
-        "martes",
-        "miercoles",
-        "jueves",
-        "viernes",
-        "sabado",
-      ];
+      let ingresoHoy = 0;
 
-      /*
-       * =========================
-       * HOY
-       * =========================
-       *
-       * Solo toma la jornada correspondiente
-       * a la fecha de jornada actual.
-       */
-      const ingresoHoy = estadisticas
-        .filter((fila) => fila.fecha === fechaJornadaISO)
-        .reduce((total, fila) => total + obtenerTotal(fila), 0);
+      if (esDiaTrabajo(fechaJornada) && esMesTrabajo(fechaJornada)) {
+        const fechaJornadaISO = convertirISO(fechaJornada);
 
-      /*
-       * =========================
-       * SEMANA
-       * =========================
-       *
-       * La semana comienza el lunes.
-       * Solamente se suman los días que el admin
-       * configuró como días de trabajo.
-       */
+        ingresoHoy = estadisticas
+          .filter((fila) => fila.fecha === fechaJornadaISO)
+          .reduce((total, fila) => total + obtenerTotal(fila), 0);
+      }
+
+      // =========================================================
+      // ESTA SEMANA
+      //
+      // IMPORTANTE:
+      // NO usamos lunes como inicio.
+      //
+      // La semana empieza en el PRIMER DÍA DE TRABAJO configurado.
+      //
+      // Ejemplo:
+      //
+      // Jueves ✅
+      // Viernes ✅
+      // Sábado ✅
+      // Domingo ✅
+      //
+      // La semana es:
+      // Jueves -> Domingo
+      //
+      // El siguiente jueves comienza una nueva semana.
+      // =========================================================
+
       const inicioSemana = new Date(fechaJornada);
 
-      const diaSemana = inicioSemana.getDay();
-
-      const diasDesdeLunes = diaSemana === 0 ? 6 : diaSemana - 1;
-
-      inicioSemana.setDate(inicioSemana.getDate() - diasDesdeLunes);
+      // Retrocedemos hasta encontrar el día de trabajo
+      // que inicia el período actual.
+      while (!esDiaTrabajo(inicioSemana)) {
+        inicioSemana.setDate(inicioSemana.getDate() - 1);
+      }
 
       inicioSemana.setHours(0, 0, 0, 0);
 
-      const inicioSemanaISO = [
-        inicioSemana.getFullYear(),
-        String(inicioSemana.getMonth() + 1).padStart(2, "0"),
-        String(inicioSemana.getDate()).padStart(2, "0"),
-      ].join("-");
+      const inicioSemanaISO = convertirISO(inicioSemana);
+      const fechaJornadaISO = convertirISO(fechaJornada);
 
-      const ingresoSemana = estadisticas
-        .filter((fila) => {
-          if (fila.fecha < inicioSemanaISO || fila.fecha > fechaJornadaISO) {
-            return false;
-          }
+      let ingresoSemana = 0;
 
-          const fecha = new Date(`${fila.fecha}T00:00:00`);
+      if (esMesTrabajo(fechaJornada)) {
+        ingresoSemana = estadisticas
+          .filter((fila) => {
+            if (fila.fecha < inicioSemanaISO) return false;
+            if (fila.fecha > fechaJornadaISO) return false;
 
-          const nombreDia = nombresDias[fecha.getDay()];
+            const fecha = new Date(`${fila.fecha}T00:00:00`);
 
-          return diasTrabajo[nombreDia] !== false;
-        })
-        .reduce((total, fila) => total + obtenerTotal(fila), 0);
+            return esDiaTrabajo(fecha) && esMesTrabajo(fecha);
+          })
+          .reduce((total, fila) => total + obtenerTotal(fila), 0);
+      }
 
-      /*
-       * =========================
-       * MES
-       * =========================
-       *
-       * Comienza el día 1 del mes.
-       */
+      // =========================================================
+      // ESTE MES
+      //
+      // Se reinicia al comenzar un nuevo mes.
+      //
+      // Ejemplo:
+      // 1 de octubre -> Este mes comienza en 0.
+      // =========================================================
+
       const inicioMes = new Date(
         fechaJornada.getFullYear(),
         fechaJornada.getMonth(),
         1,
       );
 
-      const inicioMesISO = [
-        inicioMes.getFullYear(),
-        String(inicioMes.getMonth() + 1).padStart(2, "0"),
-        String(inicioMes.getDate()).padStart(2, "0"),
-      ].join("-");
+      inicioMes.setHours(0, 0, 0, 0);
 
-      const ingresoMes = estadisticas
-        .filter(
-          (fila) => fila.fecha >= inicioMesISO && fila.fecha <= fechaJornadaISO,
-        )
-        .reduce((total, fila) => total + obtenerTotal(fila), 0);
+      const inicioMesISO = convertirISO(inicioMes);
 
-      /*
-       * =========================
-       * AÑO
-       * =========================
-       *
-       * Comienza el 1 de enero.
-       */
+      let ingresoMes = 0;
+
+      if (esMesTrabajo(fechaJornada)) {
+        ingresoMes = estadisticas
+          .filter((fila) => {
+            if (fila.fecha < inicioMesISO) return false;
+            if (fila.fecha > fechaJornadaISO) return false;
+
+            const fecha = new Date(`${fila.fecha}T00:00:00`);
+
+            return esDiaTrabajo(fecha) && esMesTrabajo(fecha);
+          })
+          .reduce((total, fila) => total + obtenerTotal(fila), 0);
+      }
+
+      // =========================================================
+      // ESTE AÑO
+      //
+      // Se reinicia al comenzar un nuevo año.
+      //
+      // Además respeta los meses de trabajo configurados.
+      // =========================================================
+
       const inicioAnio = new Date(fechaJornada.getFullYear(), 0, 1);
 
-      const inicioAnioISO = [
-        inicioAnio.getFullYear(),
-        String(inicioAnio.getMonth() + 1).padStart(2, "0"),
-        String(inicioAnio.getDate()).padStart(2, "0"),
-      ].join("-");
+      inicioAnio.setHours(0, 0, 0, 0);
 
-      const ingresoAnio = estadisticas
-        .filter(
-          (fila) =>
-            fila.fecha >= inicioAnioISO && fila.fecha <= fechaJornadaISO,
-        )
-        .reduce((total, fila) => total + obtenerTotal(fila), 0);
+      const inicioAnioISO = convertirISO(inicioAnio);
 
-      /*
-       * Guardamos los ingresos calculados.
-       */
+      let ingresoAnio = 0;
+
+      if (esMesTrabajo(fechaJornada)) {
+        ingresoAnio = estadisticas
+          .filter((fila) => {
+            if (fila.fecha < inicioAnioISO) return false;
+            if (fila.fecha > fechaJornadaISO) return false;
+
+            const fecha = new Date(`${fila.fecha}T00:00:00`);
+
+            return esDiaTrabajo(fecha) && esMesTrabajo(fecha);
+          })
+          .reduce((total, fila) => total + obtenerTotal(fila), 0);
+      }
+
+      // =========================================================
+      // GUARDAR INGRESOS
+      // =========================================================
+
       setIngresos({
         hoy: ingresoHoy,
         semana: ingresoSemana,

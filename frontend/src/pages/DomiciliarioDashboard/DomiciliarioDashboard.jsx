@@ -26,7 +26,7 @@ import {
 import { supabase } from "../../config/supabase";
 import Perfil from "./Perfil/Perfil";
 import Configuracion from "./Configuracion/Configuracion";
-
+import { generarNotificacionActividad } from "../../services/notificacionesSistemaService";
 import CountUp from "react-countup";
 import Swal from "sweetalert2";
 console.log("CountUp:", CountUp);
@@ -77,6 +77,44 @@ export default function DomiciliarioDashboard() {
   const [domicilioSeleccionado, setDomicilioSeleccionado] = useState(null);
   const [vistaActual, setVistaActual] = useState("inicio");
   const usuario = JSON.parse(sessionStorage.getItem("usuario"));
+
+  const registrarActividadYNotificar = async ({
+    usuarioId,
+    tipo,
+    accion,
+    descripcion,
+    referenciaId = null,
+    organizacionId = null,
+  }) => {
+    const resultado = await registrarActividad({
+      usuarioId,
+      tipo,
+      accion,
+      descripcion,
+      referenciaId,
+      organizacionId,
+    });
+
+    if (!resultado?.data?.id) {
+      return resultado;
+    }
+
+    try {
+      await generarNotificacionActividad({
+        actividadId: resultado.data.id,
+        usuarioId,
+        organizacionId,
+        descripcion,
+      });
+    } catch (error) {
+      console.error(
+        "La actividad se registró, pero no se pudo generar la notificación:",
+        error,
+      );
+    }
+
+    return resultado;
+  };
   const [mostrarImagen, setMostrarImagen] = useState(false);
   const [modoOscuro, setModoOscuro] = useState(
     localStorage.getItem("modoOscuro") === "true",
@@ -318,32 +356,69 @@ export default function DomiciliarioDashboard() {
       const numeroFactura = `FAC-${Date.now()}`;
 
       // ==========================================
-      // BUSCAR CLIENTE
+      // DATOS DEL CLIENTE
       // ==========================================
 
-      const { data: clienteExistente, error: buscarClienteError } =
-        await supabase
-          .from("clientes")
-          .select("id")
-          .eq("telefono", formData.telefono.trim())
-          .eq("organizacion_id", organizacionSeleccionada)
-          .maybeSingle();
+      const telefonoCliente = formData.telefono.trim();
+      console.log("========== BUSQUEDA CLIENTE ==========");
+      console.log("USUARIO:", usuario?.id);
+      console.log("NOMBRE USUARIO:", usuario?.nombre);
+      console.log("ORGANIZACION SELECCIONADA:", organizacionSeleccionada);
+      console.log("TELEFONO CLIENTE:", telefonoCliente);
+      console.log("======================================");
+      // ==========================================
+      // BUSCAR CLIENTE EN LA ORGANIZACIÓN
+      // ==========================================
+      // IMPORTANTE:
+      // Se busca directamente en clientes usando:
+      // teléfono + organización.
+      //
+      // Así, si Nicolas trabaja con:
+      // f316242b-8a80-494f-bc0e-a7cac4738224
+      //
+      // encontrará el cliente ID 29 y no lo
+      // considerará como un cliente nuevo.
+
+      const { data: clientesExistentes, error: buscarClienteError } =
+        await supabase.rpc("buscar_clientes_para_organizacion", {
+          p_organizacion_id: organizacionSeleccionada,
+          p_busqueda: telefonoCliente,
+        });
+
+      const clienteExistente = (clientesExistentes || []).find(
+        (cliente) => cliente.telefono === telefonoCliente,
+      );
 
       if (buscarClienteError) {
-        console.error("Error buscando cliente:", buscarClienteError);
+        console.error(
+          "Error buscando cliente en la organización:",
+          buscarClienteError,
+        );
 
         setError("No se pudo verificar el cliente.");
         return;
       }
 
+      // ==========================================
+      // OBTENER ID DEL CLIENTE
+      // ==========================================
+
       let clienteId = clienteExistente?.id;
 
+      // ==========================================
+      // CREAR CLIENTE SOLO SI NO EXISTE
+      // ==========================================
+
       if (!clienteExistente) {
+        console.log("⚠️ CLIENTE NO ENCONTRADO.");
+        console.log("Organización buscada:", organizacionSeleccionada);
+        console.log("Teléfono buscado:", telefonoCliente);
+
         const { data: nuevoCliente, error: clienteError } = await supabase.rpc(
           "crear_cliente_para_organizacion",
           {
             p_nombre: formData.cliente.trim(),
-            p_telefono: formData.telefono.trim(),
+            p_telefono: telefonoCliente,
             p_direccion: formData.direccion.trim(),
             p_organizacion_id: organizacionSeleccionada,
           },
@@ -378,9 +453,13 @@ export default function DomiciliarioDashboard() {
 
         clienteId = nuevoCliente.id;
 
-        console.log("✅ CLIENTE CREADO:", nuevoCliente);
+        console.log("✅ CLIENTE REALMENTE NUEVO:", nuevoCliente);
 
-        await registrarActividad({
+        // ==========================================
+        // NOTIFICAR SOLO SI SE CREÓ UN CLIENTE NUEVO
+        // ==========================================
+
+        await registrarActividadYNotificar({
           usuarioId: usuario.id,
           tipo: "cliente",
           accion: "crear",
@@ -388,7 +467,19 @@ export default function DomiciliarioDashboard() {
           referenciaId: clienteId,
           organizacionId: organizacionSeleccionada,
         });
+      } else {
+        console.log("✅ CLIENTE YA EXISTÍA:", clienteExistente);
       }
+
+      // ==========================================
+      // DEBUG DEL DOMICILIO
+      // ==========================================
+
+      console.log("========== DEBUG DOMICILIO ==========");
+      console.log("AUTH USER:", usuario?.id);
+      console.log("ORGANIZACIÓN SELECCIONADA:", organizacionSeleccionada);
+      console.log("CLIENTE ID:", clienteId);
+      console.log("====================================");
 
       // ==========================================
       // GUARDAR DOMICILIO
@@ -400,7 +491,7 @@ export default function DomiciliarioDashboard() {
           {
             numero_factura: numeroFactura,
             cliente: formData.cliente.trim(),
-            telefono: formData.telefono.trim(),
+            telefono: telefonoCliente,
             direccion: formData.direccion.trim(),
             costo: Number(formData.valor),
             metodo_pago: formData.metodo_pago,
@@ -435,7 +526,7 @@ export default function DomiciliarioDashboard() {
       // REGISTRAR ACTIVIDAD DEL DOMICILIO
       // ==========================================
 
-      await registrarActividad({
+      await registrarActividadYNotificar({
         usuarioId: usuario.id,
         tipo: "domicilio",
         accion: "crear",
@@ -453,7 +544,7 @@ export default function DomiciliarioDashboard() {
           "crear_o_acumular_pendiente",
           {
             p_cliente: formData.cliente.trim(),
-            p_telefono: formData.telefono.trim(),
+            p_telefono: telefonoCliente,
             p_direccion: formData.direccion.trim(),
             p_monto: Number(formData.valor),
             p_domicilio_id: domicilioCreado.id,
@@ -585,23 +676,21 @@ export default function DomiciliarioDashboard() {
     if (!usuario?.id) return;
 
     try {
-      console.log("USUARIO ID DOMICILIARIO:", usuario.id);
+      console.log("========== CARGANDO ORGANIZACIONES ==========");
+      console.log("USUARIO:", usuario.id);
 
       // ==========================================
-      // 1. OBTENER ORGANIZACIÓN DEL USUARIO
+      // 1. OBTENER DATOS DEL USUARIO
       // ==========================================
 
       const { data: usuarioActual, error: usuarioError } = await supabase
         .from("usuarios")
-        .select("organizacion_id")
+        .select("id, nombre, rol, organizacion_id")
         .eq("id", usuario.id)
         .single();
 
       if (usuarioError) {
-        console.error(
-          "Error obteniendo organización del usuario:",
-          usuarioError,
-        );
+        console.error("Error obteniendo usuario:", usuarioError);
 
         setOrganizaciones([]);
         setOrganizacionSeleccionada("");
@@ -610,8 +699,42 @@ export default function DomiciliarioDashboard() {
 
       console.log("USUARIO ACTUAL:", usuarioActual);
 
-      if (!usuarioActual?.organizacion_id) {
-        console.error("El usuario no tiene una organización asignada.");
+      // ==========================================
+      // 2. RESOLVER ORGANIZACIÓN BASE
+      // ==========================================
+
+      let organizacionBaseId = usuarioActual?.organizacion_id;
+
+      // Si no tiene organización directa,
+      // buscar mediante usuarios_organizaciones.
+      if (!organizacionBaseId) {
+        const { data: relacionUsuario, error: relacionError } = await supabase
+          .from("usuarios_organizaciones")
+          .select("organizacion_id")
+          .eq("usuario_id", usuario.id)
+          .eq("estado", "activo")
+          .order("id", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (relacionError) {
+          console.error(
+            "Error obteniendo relación del usuario:",
+            relacionError,
+          );
+
+          setOrganizaciones([]);
+          setOrganizacionSeleccionada("");
+          return;
+        }
+
+        organizacionBaseId = relacionUsuario?.organizacion_id;
+      }
+
+      console.log("ORGANIZACIÓN BASE:", organizacionBaseId);
+
+      if (!organizacionBaseId) {
+        console.error("No se pudo determinar la organización del usuario.");
 
         setOrganizaciones([]);
         setOrganizacionSeleccionada("");
@@ -619,24 +742,20 @@ export default function DomiciliarioDashboard() {
       }
 
       // ==========================================
-      // 2. OBTENER LA ORGANIZACIÓN DEL USUARIO
+      // 3. OBTENER ORGANIZACIÓN BASE
       // ==========================================
 
-      const { data: organizacionesPrueba, error: organizacionError } =
+      const { data: organizacionBase, error: organizacionBaseError } =
         await supabase
           .from("organizaciones")
           .select("id, nombre, estado, organizacion_principal_id")
-          .eq("id", usuarioActual.organizacion_id);
+          .eq("id", organizacionBaseId)
+          .maybeSingle();
 
-      console.log("ORGANIZACIONES PRUEBA:", organizacionesPrueba);
-      console.log("ERROR ORGANIZACIONES:", organizacionError);
-
-      const organizacionUsuario = organizacionesPrueba?.[0] || null;
-
-      if (organizacionError) {
+      if (organizacionBaseError) {
         console.error(
-          "Error obteniendo organización del domiciliario:",
-          organizacionError,
+          "Error obteniendo organización base:",
+          organizacionBaseError,
         );
 
         setOrganizaciones([]);
@@ -644,38 +763,27 @@ export default function DomiciliarioDashboard() {
         return;
       }
 
-      console.log("ORGANIZACIÓN DEL DOMICILIARIO:", organizacionUsuario);
-
-      if (!organizacionUsuario) {
-        console.error("No se encontró la organización del domiciliario.");
+      if (!organizacionBase) {
+        console.error("No se encontró la organización base.");
 
         setOrganizaciones([]);
         setOrganizacionSeleccionada("");
         return;
       }
 
+      console.log("ORGANIZACIÓN BASE ENCONTRADA:", organizacionBase);
+
       // ==========================================
-      // 3. OBTENER LA ORGANIZACIÓN PRINCIPAL
+      // 4. DETERMINAR ORGANIZACIÓN PRINCIPAL
       // ==========================================
 
       const organizacionPrincipalId =
-        organizacionUsuario.organizacion_principal_id;
-
-      if (!organizacionPrincipalId) {
-        console.error(
-          "La organización del domiciliario no tiene organización principal.",
-        );
-
-        setOrganizaciones([]);
-        setOrganizacionSeleccionada("");
-        return;
-      }
+        organizacionBase.organizacion_principal_id || organizacionBase.id;
 
       console.log("ORGANIZACIÓN PRINCIPAL:", organizacionPrincipalId);
 
       // ==========================================
-      // 4. OBTENER TODAS LAS ORGANIZACIONES
-      //    DE ESA MISMA ORGANIZACIÓN PRINCIPAL
+      // 5. OBTENER ORGANIZACIONES DE ESA PRINCIPAL
       // ==========================================
 
       const { data: organizacionesHijas, error: hijasError } = await supabase
@@ -686,45 +794,60 @@ export default function DomiciliarioDashboard() {
         .order("nombre", { ascending: true });
 
       if (hijasError) {
-        console.error(
-          "Error obteniendo organizaciones de la organización principal:",
-          hijasError,
-        );
+        console.error("Error obteniendo organizaciones:", hijasError);
 
         setOrganizaciones([]);
         setOrganizacionSeleccionada("");
         return;
       }
 
-      console.log(
-        "ORGANIZACIONES DE LA ORGANIZACIÓN PRINCIPAL:",
-        organizacionesHijas,
+      // ==========================================
+      // 6. ASEGURAR QUE LA ORGANIZACIÓN BASE
+      //    ESTÉ INCLUIDA
+      // ==========================================
+
+      let organizacionesDisponibles = organizacionesHijas || [];
+
+      const baseYaExiste = organizacionesDisponibles.some(
+        (organizacion) => organizacion.id === organizacionBase.id,
       );
 
+      if (organizacionBase.estado === "activa" && !baseYaExiste) {
+        organizacionesDisponibles = [
+          organizacionBase,
+          ...organizacionesDisponibles,
+        ];
+      }
+
+      console.log("ORGANIZACIONES DISPONIBLES:", organizacionesDisponibles);
+
       // ==========================================
-      // 5. GUARDAR ORGANIZACIONES
+      // 7. GUARDAR ORGANIZACIONES
       // ==========================================
 
-      setOrganizaciones(organizacionesHijas || []);
+      setOrganizaciones(organizacionesDisponibles);
 
       // ==========================================
-      // 6. SELECCIONAR ORGANIZACIÓN
+      // 8. SELECCIONAR ORGANIZACIÓN
       // ==========================================
 
-      if (organizacionesHijas?.length === 1) {
-        // Solo existe una organización
-        setOrganizacionSeleccionada(organizacionesHijas[0].id);
-      } else if (organizacionesHijas?.length > 1) {
-        // Hay varias organizaciones.
-        // No seleccionamos automáticamente.
-        setOrganizacionSeleccionada("");
+      if (organizacionesDisponibles.length === 1) {
+        setOrganizacionSeleccionada(organizacionesDisponibles[0].id);
+      } else if (
+        organizacionesDisponibles.some(
+          (organizacion) => organizacion.id === organizacionBase.id,
+        )
+      ) {
+        // Si hay varias, seleccionar la organización
+        // propia del usuario.
+        setOrganizacionSeleccionada(organizacionBase.id);
       } else {
-        console.error(
-          "La organización principal no tiene organizaciones activas.",
-        );
-
         setOrganizacionSeleccionada("");
       }
+
+      console.log("ORGANIZACIÓN SELECCIONADA:", organizacionBase.id);
+
+      console.log("============================================");
     } catch (error) {
       console.error("Error inesperado cargando organizaciones:", error);
 
@@ -864,7 +987,7 @@ export default function DomiciliarioDashboard() {
     // REGISTRAR ACTIVIDAD
     // ==========================================
 
-    await registrarActividad({
+    await registrarActividadYNotificar({
       usuarioId: usuario.id,
       tipo: "domicilio",
       accion: nuevoEstado === "Cancelado" ? "cancelar" : "reportar",
@@ -893,7 +1016,11 @@ export default function DomiciliarioDashboard() {
   };
   const buscarCliente = async (valor) => {
     const busqueda = valor.trim();
-    console.log("Buscando cliente:", busqueda);
+
+    console.log("========== BUSCANDO CLIENTE ==========");
+    console.log("BÚSQUEDA:", busqueda);
+    console.log("ORGANIZACIÓN:", organizacionSeleccionada);
+
     if (!busqueda) {
       setClientesEncontrados([]);
       setClienteEncontrado(null);
@@ -901,36 +1028,44 @@ export default function DomiciliarioDashboard() {
       return;
     }
 
-    try {
-      const organizacionId = organizacionSeleccionada;
-
-      console.log("ORGANIZACIÓN SELECCIONADA:", organizacionId);
-
-      if (!organizacionId) {
-        console.log("NO HAY ORGANIZACIÓN SELECCIONADA");
-        setClientesEncontrados([]);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("id, nombre, telefono, direccion")
-        .or(`nombre.ilike.%${busqueda}%,telefono.ilike.%${busqueda}%`)
-        .order("nombre", { ascending: true })
-        .limit(5);
-      console.log("RESULTADOS CLIENTES:", data);
-      console.log("ERROR CLIENTES:", error);
-      if (error) {
-        console.error("Error buscando clientes:", error);
-        setClientesEncontrados([]);
-        return;
-      }
-
-      setClientesEncontrados(data || []);
-      setClienteNoEncontrado(!data || data.length === 0);
-    } catch (error) {
-      console.error("Error inesperado buscando cliente:", error);
+    if (!organizacionSeleccionada) {
+      console.log("NO HAY ORGANIZACIÓN SELECCIONADA");
       setClientesEncontrados([]);
+      setClienteNoEncontrado(false);
+      return;
+    }
+
+    try {
+      const { data: clientesEncontrados, error: relacionError } =
+        await supabase.rpc("buscar_clientes_para_organizacion", {
+          p_organizacion_id: organizacionSeleccionada,
+          p_busqueda: busqueda,
+        });
+
+      if (relacionError) {
+        console.error(
+          "ERROR BUSCANDO CLIENTES POR ORGANIZACIÓN:",
+          relacionError,
+        );
+
+        setClientesEncontrados([]);
+        setClienteEncontrado(null);
+        setClienteNoEncontrado(false);
+        return;
+      }
+
+      console.log("CLIENTES ENCONTRADOS:", clientesEncontrados);
+
+      const clientes = clientesEncontrados || [];
+
+      setClientesEncontrados(clientes);
+      setClienteNoEncontrado(clientes.length === 0);
+    } catch (error) {
+      console.error("ERROR INESPERADO BUSCANDO CLIENTE:", error);
+
+      setClientesEncontrados([]);
+      setClienteEncontrado(null);
+      setClienteNoEncontrado(false);
     }
   };
   const seleccionarCliente = (cliente) => {
@@ -948,6 +1083,14 @@ export default function DomiciliarioDashboard() {
     }));
   };
   const cerrarDia = async () => {
+    if (!organizacionSeleccionada) {
+      Swal.fire({
+        icon: "warning",
+        title: "Selecciona una organización",
+        text: "Debes seleccionar una organización antes de cerrar el día.",
+      });
+      return;
+    }
     const totalDomicilios = domicilios.length;
 
     const totalRecaudado = domicilios
@@ -991,6 +1134,8 @@ export default function DomiciliarioDashboard() {
     console.log("TOTAL CANCELADOS:", totalCancelados);
     console.log("TOTAL REPORTADOS:", totalReportados);
     console.log("======================================");
+    console.log("🔎 UUID USUARIO:", usuario?.id);
+    console.log("🔎 UUID ORGANIZACIÓN:", organizacionSeleccionada);
     const { data: cierre, error: cierreError } = await supabase
       .from("cierres_dia")
       .insert([
@@ -1056,12 +1201,13 @@ export default function DomiciliarioDashboard() {
     // REGISTRAR ACTIVIDAD
     // ================================
 
-    await registrarActividad({
+    await registrarActividadYNotificar({
       usuarioId: usuario.id,
       tipo: "cierre",
       accion: "cerrar_dia",
       descripcion: `Cerró el día con ${totalDomicilios} domicilios y un total recaudado de $${totalRecaudado.toLocaleString("es-CO")}.`,
       referenciaId: cierre.id,
+      organizacionId: organizacionSeleccionada,
     });
 
     // ================================
@@ -1136,7 +1282,7 @@ export default function DomiciliarioDashboard() {
     // REGISTRAR ACTIVIDAD
     // ==========================================
 
-    await registrarActividad({
+    await registrarActividadYNotificar({
       usuarioId: usuario.id,
       tipo: "sesion",
       accion: "cerrar_sesion",
@@ -1242,7 +1388,7 @@ export default function DomiciliarioDashboard() {
         comprobante_url: data.publicUrl,
       })
       .eq("id", domicilioSeleccionado.id);
-    await registrarActividad({
+    await registrarActividadYNotificar({
       usuarioId: usuario.id,
       tipo: "domicilio",
       accion: "comprobante",
@@ -1285,6 +1431,7 @@ export default function DomiciliarioDashboard() {
       "validar_y_consumir_clave_edicion",
       {
         p_clave: claveEdicion.trim(),
+        p_organizacion_id: organizacionSeleccionada,
       },
     );
 
@@ -1352,6 +1499,7 @@ export default function DomiciliarioDashboard() {
       "validar_y_consumir_clave_edicion",
       {
         p_clave: claveSolucion.trim(),
+        p_organizacion_id: organizacionSeleccionada,
       },
     );
 
@@ -1408,7 +1556,7 @@ export default function DomiciliarioDashboard() {
     // MARCAR REPORTE COMO SOLUCIONADO
     // ==========================================
 
-    await registrarActividad({
+    await registrarActividadYNotificar({
       usuarioId: usuario.id,
       tipo: "domicilio",
       accion: "solucionar_reporte",
@@ -1492,18 +1640,17 @@ export default function DomiciliarioDashboard() {
 
     setEditandoDomicilio(true);
 
-    const { data, error } = await supabase
-      .from("domicilios")
-      .update({
-        cliente: datosEdicion.cliente.trim(),
-        telefono: datosEdicion.telefono.trim(),
-        direccion: datosEdicion.direccion.trim(),
-        costo: Number(datosEdicion.costo),
-      })
-      .eq("id", domicilioSeleccionado.id)
-      .select()
-      .single();
-
+    const { data, error } = await supabase.rpc(
+      "actualizar_domicilio_y_pendiente",
+      {
+        p_domicilio_id: domicilioSeleccionado.id,
+        p_cliente: datosEdicion.cliente.trim(),
+        p_telefono: datosEdicion.telefono.trim(),
+        p_direccion: datosEdicion.direccion.trim(),
+        p_costo: Number(datosEdicion.costo),
+        p_organizacion_id: organizacionSeleccionada,
+      },
+    );
     if (error) {
       console.error("Error actualizando domicilio:", error);
 
@@ -1522,7 +1669,7 @@ export default function DomiciliarioDashboard() {
     // REGISTRAR ACTIVIDAD
     // ==========================================
 
-    await registrarActividad({
+    await registrarActividadYNotificar({
       usuarioId: usuario.id,
       tipo: "domicilio",
       accion: "editar",
@@ -1684,9 +1831,20 @@ export default function DomiciliarioDashboard() {
         <div className={styles.lqSidebarFooter}>
           <button
             className={styles.lqCloseDay}
-            onClick={() => setModalCerrarDia(true)}
+            onClick={() => {
+              if (!organizacionSeleccionada) {
+                Swal.fire({
+                  icon: "warning",
+                  title: "Selecciona una organización",
+                  text: "Debes seleccionar una organización antes de cerrar el día.",
+                });
+                return;
+              }
+
+              setModalCerrarDia(true);
+            }}
           >
-            <ClipboardDocumentCheckIcon className={styles.lqIcon} />
+            <ClipboardDocumentCheckIcon />
             Cerrar Día
           </button>
 

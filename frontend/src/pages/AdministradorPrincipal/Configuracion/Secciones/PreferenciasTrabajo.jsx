@@ -66,7 +66,7 @@ export default function PreferenciasTrabajo() {
     pendientes: true,
     reportes: true,
   });
-
+  const [periodoReportes, setPeriodoReportes] = useState("manual");
   // =====================================================
   // OBTENER ORGANIZACIÓN DEL USUARIO ACTUAL
   // =====================================================
@@ -135,14 +135,15 @@ export default function PreferenciasTrabajo() {
           .from("configuraciones_organizacion")
           .select(
             `
-              horario_activo,
-              hora_inicio,
-              hora_fin,
-              dias_trabajo,
-              meses_trabajo,
-              periodo_estadisticas,
-              estadisticas
-            `,
+    horario_activo,
+    hora_inicio,
+    hora_fin,
+    dias_trabajo,
+    meses_trabajo,
+    periodo_estadisticas,
+    estadisticas,
+    periodo_reportes
+  `,
           )
           .eq("organizacion_id", orgId)
           .maybeSingle();
@@ -185,6 +186,9 @@ export default function PreferenciasTrabajo() {
               ...actual,
               ...data.estadisticas,
             }));
+          }
+          if (data.periodo_reportes) {
+            setPeriodoReportes(data.periodo_reportes);
           }
         }
       } catch (error) {
@@ -257,6 +261,7 @@ export default function PreferenciasTrabajo() {
             meses_trabajo: mesesTrabajo,
             periodo_estadisticas: periodoEstadisticas,
             estadisticas: estadisticas,
+            periodo_reportes: periodoReportes,
           },
           {
             onConflict: "organizacion_id",
@@ -447,7 +452,83 @@ export default function PreferenciasTrabajo() {
           </button>
         </div>
       </section>
+      <section className={styles.seccion}>
+        <div className={styles.tituloSeccion}>
+          <div>
+            <h3>Período para descargar reportes</h3>
+            <p>
+              Define con qué frecuencia quieres generar reportes automáticamente
+              al finalizar la jornada.
+            </p>
+          </div>
+        </div>
 
+        <div className={styles.periodos}>
+          <button
+            type="button"
+            className={`${styles.periodo} ${
+              periodoReportes === "manual" ? styles.periodoActivo : ""
+            }`}
+            onClick={() => setPeriodoReportes("manual")}
+          >
+            <strong>Solo manual</strong>
+            <span>Descarga los reportes únicamente cuando los solicites.</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.periodo} ${
+              periodoReportes === "diario" ? styles.periodoActivo : ""
+            }`}
+            onClick={() => setPeriodoReportes("diario")}
+          >
+            <strong>Todos los días</strong>
+            <span>Genera el reporte al finalizar cada jornada.</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.periodo} ${
+              periodoReportes === "semanal" ? styles.periodoActivo : ""
+            }`}
+            onClick={() => setPeriodoReportes("semanal")}
+          >
+            <strong>Cada semana</strong>
+            <span>Genera un reporte con la información de la semana.</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.periodo} ${
+              periodoReportes === "mensual" ? styles.periodoActivo : ""
+            }`}
+            onClick={() => setPeriodoReportes("mensual")}
+          >
+            <strong>Cada mes</strong>
+            <span>Genera un reporte con la información del mes.</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.periodo} ${
+              periodoReportes === "anual" ? styles.periodoActivo : ""
+            }`}
+            onClick={() => setPeriodoReportes("anual")}
+          >
+            <strong>Cada año</strong>
+            <span>Genera un reporte con la información del año.</span>
+          </button>
+        </div>
+
+        <div className={styles.info}>
+          <span>ⓘ</span>
+          <p>
+            Los reportes automáticos utilizarán la hora de finalización de la
+            jornada como referencia. También puedes descargarlos manualmente en
+            cualquier momento.
+          </p>
+        </div>
+      </section>
       {/* =====================================================
           ESTADÍSTICAS PRIORITARIAS
       ===================================================== */}

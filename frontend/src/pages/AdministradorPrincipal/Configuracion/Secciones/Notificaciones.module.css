@@ -1,0 +1,345 @@
+.contenedor {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.encabezado {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.iconoPrincipal {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #eff6ff;
+  color: #2563eb;
+
+  border-radius: 12px;
+}
+
+.iconoPrincipal svg {
+  width: 25px;
+  height: 25px;
+}
+
+.encabezado h2 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.encabezado p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.seccion {
+  margin-bottom: 28px;
+  padding: 22px;
+
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+}
+
+.tituloSeccion {
+  margin-bottom: 18px;
+}
+
+.tituloSeccion h3 {
+  margin: 0 0 5px;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.tituloSeccion p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.preferencia {
+  width: 100%;
+  padding: 16px 4px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+
+  background: transparent;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.preferencia:last-child {
+  border-bottom: none;
+}
+
+.preferenciaTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preferenciaTexto strong {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.preferenciaTexto span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.interruptor {
+  width: 44px;
+  height: 24px;
+  padding: 3px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+
+  background: #cbd5e1;
+  border-radius: 999px;
+
+  transition: 0.2s ease;
+}
+
+.interruptorActivo {
+  background: #2563eb;
+  justify-content: flex-end;
+}
+
+.circulo {
+  width: 18px;
+  height: 18px;
+
+  background: #ffffff;
+  border-radius: 50%;
+
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+}
+
+/* ============================================================
+   SONIDO
+   ============================================================ */
+
+.configuracionSonido {
+  margin-top: 14px;
+  padding: 18px;
+
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 20px;
+}
+
+.campo label,
+.volumenHeader label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.campo select {
+  width: 100%;
+  padding: 11px 12px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #334155;
+
+  font-size: 13px;
+  outline: none;
+}
+
+.campo select:focus {
+  border-color: #2563eb;
+}
+
+.volumen {
+  margin-bottom: 20px;
+}
+
+.volumenHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 10px;
+}
+
+.volumenHeader span {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.controlVolumen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controlVolumen svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.controlVolumen input {
+  width: 100%;
+  cursor: pointer;
+}
+
+.botonProbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  padding: 10px 15px;
+
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+
+  background: #eff6ff;
+  color: #2563eb;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.botonProbar:hover {
+  background: #dbeafe;
+}
+
+.botonProbar svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 15px;
+
+  margin-top: 10px;
+}
+
+.mensajeGuardado {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mensajeGuardado svg {
+  width: 17px;
+  height: 17px;
+}
+
+.botonGuardar {
+  padding: 11px 20px;
+
+  border: none;
+  border-radius: 9px;
+
+  background: #2563eb;
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.botonGuardar:hover {
+  background: #1d4ed8;
+}
+
+.botonGuardar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cargando {
+  padding: 50px;
+  text-align: center;
+
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* ============================================================
+   MÓVIL
+   ============================================================ */
+
+@media (max-width: 700px) {
+  .seccion {
+    padding: 17px;
+  }
+
+  .preferencia {
+    gap: 12px;
+  }
+
+  .preferenciaTexto span {
+    max-width: 240px;
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .botonGuardar {
+    width: 100%;
+  }
+}

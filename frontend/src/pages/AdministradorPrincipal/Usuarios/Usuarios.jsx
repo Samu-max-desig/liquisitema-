@@ -13,7 +13,7 @@ import {
 import { supabase } from "../../../config/supabase";
 import { registrarActividad } from "../../../services/actividadService";
 import styles from "./Usuarios.module.css";
-
+import { generarNotificacionUsuario } from "../../../services/notificacionesSistemaService";
 export default function Usuarios() {
   const usuarioActual = JSON.parse(sessionStorage.getItem("usuario") || "null");
   const [organizacionActualId, setOrganizacionActualId] = useState(null);
@@ -224,11 +224,6 @@ export default function Usuarios() {
         usuarioAfectadoId: usuarioEditando.id,
       });
     }
-
-    // ==========================================
-    // REGISTRAR CAMBIO DE ESTADO
-    // ==========================================
-
     if (cambioInformacion) {
       await registrarActividad({
         tipo: "usuario",
@@ -238,7 +233,23 @@ export default function Usuarios() {
         organizacionId: organizacionActualId,
         usuarioAfectadoId: usuarioEditando.id,
       });
+
+      try {
+        await generarNotificacionUsuario({
+          usuarioId: usuarioEditando.id,
+          accion: "editar",
+          nombreUsuario: usuarioEditando.nombre,
+        });
+      } catch (error) {
+        console.error(
+          "La actividad se registró, pero no se pudo notificar:",
+          error,
+        );
+      }
     }
+    // ==========================================
+    // REGISTRAR CAMBIO DE ESTADO
+    // ==========================================
 
     // ==========================================
     // MENSAJE DE ÉXITO
@@ -862,7 +873,29 @@ export default function Usuarios() {
       referenciaId: null,
       organizacionId: organizacionActualId,
     });
+    const usuarioCreadoId = data?.usuario?.id || data?.id;
 
+    console.log("USUARIO CREADO:", data);
+    console.log("ID USUARIO CREADO PARA NOTIFICACIÓN:", usuarioCreadoId);
+
+    if (usuarioCreadoId) {
+      try {
+        await generarNotificacionUsuario({
+          usuarioId: usuarioCreadoId,
+          accion: "crear",
+          nombreUsuario: nuevoUsuario.nombre,
+        });
+      } catch (error) {
+        console.error(
+          "La actividad se registró, pero no se pudo notificar:",
+          error,
+        );
+      }
+    } else {
+      console.error(
+        "❌ No se pudo obtener el ID del usuario creado para generar la notificación.",
+      );
+    }
     // ==========================================
     // FINALIZAR CREACIÓN
     // ==========================================

@@ -2428,3 +2428,69 @@ CELULARES PEQUEÑOS
   width: 100%;
   z-index: 1000;
 }
+/* ==========================================
+   BOTÓN CERRAR DÍA
+   ========================================== */
+
+.lqCloseDay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  width: 100%;
+  min-height: 44px;
+
+  padding: 10px 18px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: #dc2626;
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.lqCloseDay:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.lqCloseDay:active {
+  transform: translateY(0);
+}
+
+.lqCloseDay svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* ==========================================
+   BOTÓN SIN ORGANIZACIÓN SELECCIONADA
+   ========================================== */
+
+.lqCloseDay:disabled {
+  background: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.8;
+}
+
+.lqCloseDay:disabled:hover {
+  background: #d1d5db;
+  transform: none;
+  box-shadow: none;
+}

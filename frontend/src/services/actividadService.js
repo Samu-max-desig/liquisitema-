@@ -70,18 +70,26 @@ export const registrarActividad = async ({
         error: new Error("Organización no identificada"),
       };
     }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    console.log("========== ACTIVIDAD ==========");
+    console.log("Sesión Supabase:", session);
+    console.log("Usuario Auth:", session?.user?.id);
+    console.log("Usuario local:", usuario);
+    console.log("ID actividad:", idUsuario);
+    console.log("Organización:", organizacionFinal);
+    console.log("================================");
 
-    const { data, error } = await supabase.from("actividades").insert([
-      {
-        usuario_id: idUsuario,
-        tipo,
-        accion,
-        descripcion,
-        referencia_id: referenciaId,
-        organizacion_id: organizacionFinal,
-        usuario_afectado_id: usuarioAfectadoId,
-      },
-    ]);
+    const { data, error } = await supabase.rpc("registrar_actividad_segura", {
+      p_usuario_id: idUsuario,
+      p_tipo: tipo,
+      p_accion: accion,
+      p_descripcion: descripcion,
+      p_referencia_id: referenciaId,
+      p_organizacion_id: organizacionFinal,
+      p_usuario_afectado_id: usuarioAfectadoId,
+    });
 
     if (error) {
       console.error("Error registrando actividad:", error);
@@ -105,7 +113,6 @@ export const registrarActividad = async ({
     };
   }
 };
-
 // ==========================================
 // OBTENER TODAS LAS ACTIVIDADES
 // ==========================================
