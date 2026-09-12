@@ -13,6 +13,7 @@ import {
   CATALOGO_ERRORES,
   interpretarError,
 } from "../../../../services/sistema/catalogoErrores";
+import { obtenerPoliticaReparacion } from "../../../../services/sistema/politicaReparaciones";
 import styles from "./SoporteDiagnostico.module.css";
 import { supabase } from "../../../../config/supabase";
 import { registrarIncidente } from "../../../../services/sistema/incidenteService";
@@ -20,6 +21,10 @@ import {
   obtenerIncidentes,
   actualizarEstadoIncidente,
 } from "../../../../services/sistema/incidenteService";
+import {
+  ejecutarReparacion,
+  obtenerReparacionesIncidente,
+} from "../../../../services/sistema/reparacionService";
 const crearPrueba = (id, nombre, descripcion) => ({
   id,
   nombre,
@@ -79,10 +84,12 @@ function SoporteDiagnostico() {
     usuario: null,
     organizacionId: null,
   });
+  const [reparandoIncidente, setReparandoIncidente] = useState(null);
+  const [resultadoReparacion, setResultadoReparacion] = useState({});
   const totalPendientes = incidentes.filter(
     (incidente) => incidente.estado === "pendiente",
   ).length;
-
+  const [historialReparaciones, setHistorialReparaciones] = useState({});
   const totalRevision = incidentes.filter(
     (incidente) => incidente.estado === "en_revision",
   ).length;
@@ -106,7 +113,51 @@ function SoporteDiagnostico() {
       ),
     );
   };
+  const totalPruebas = pruebas.length;
 
+  const pruebasCorrectas = pruebas.filter(
+    (prueba) => prueba.estado === "ok",
+  ).length;
+
+  const pruebasConProblema = pruebas.filter(
+    (prueba) => prueba.estado === "error",
+  ).length;
+
+  const pruebasOmitidas = pruebas.filter(
+    (prueba) => prueba.estado === "omitido",
+  ).length;
+  const pruebasConError = pruebas.filter((prueba) => prueba.estado === "error");
+  const problemasCriticos = problemas.filter(
+    (problema) => problema.gravedad === "critica",
+  ).length;
+
+  const problemasAlta = problemas.filter(
+    (problema) => problema.gravedad === "alta",
+  ).length;
+
+  const problemasMedia = problemas.filter(
+    (problema) => problema.gravedad === "media",
+  ).length;
+  const incidentesPendientes = incidentes.filter(
+    (incidente) =>
+      incidente.estado === "pendiente" || incidente.estado === "en_revision",
+  );
+
+  const incidentesCriticosPendientes = incidentesPendientes.filter(
+    (incidente) => incidente.gravedad === "critica",
+  );
+
+  const totalIncidentesPendientes = incidentesPendientes.length;
+
+  const totalIncidentesCriticosPendientes = incidentesCriticosPendientes.length;
+  const estadoResumen =
+    totalIncidentesCriticosPendientes > 0
+      ? "critical"
+      : problemasCriticos > 0
+        ? "critical"
+        : totalIncidentesPendientes > 0
+          ? "warning"
+          : estadoSistema;
   const crearProblema = ({
     error = null,
     tipo = "UNKNOWN",
@@ -126,6 +177,55 @@ function SoporteDiagnostico() {
       gravedad: gravedad || interpretado.gravedad,
       errorTecnico: interpretado.errorTecnico,
     };
+  };
+  const repararIncidente = async (incidente) => {
+    const politica = obtenerPoliticaReparacion(incidente.codigo_error);
+
+    // ==========================================
+    // SEGURIDAD
+    // ==========================================
+
+    if (
+      incidente.estado !== "pendiente" ||
+      politica.nivel !== "reparable" ||
+      !politica.accion
+    ) {
+      return;
+    }
+
+    setReparandoIncidente(incidente.id);
+
+    setResultadoReparacion((actual) => ({
+      ...actual,
+      [incidente.id]: null,
+    }));
+
+    try {
+      const resultado = await ejecutarReparacion({
+        incidenteId: incidente.id,
+        codigoError: incidente.codigo_error,
+        contexto: incidente.contexto || {},
+      });
+
+      setResultadoReparacion((actual) => ({
+        ...actual,
+        [incidente.id]: resultado,
+      }));
+    } catch (error) {
+      console.error("[LIQUISISTEMA] Error ejecutando reparación:", error);
+
+      setResultadoReparacion((actual) => ({
+        ...actual,
+        [incidente.id]: {
+          exito: false,
+          ejecutada: false,
+          mensaje: "No fue posible ejecutar la reparación.",
+          errorTecnico: error?.message || String(error),
+        },
+      }));
+    } finally {
+      setReparandoIncidente(null);
+    }
   };
   const registrarProblemaComoIncidente = async (
     problema,
@@ -217,6 +317,25 @@ function SoporteDiagnostico() {
 
     return coincideBusqueda && coincideEstado && coincideGravedad;
   });
+  const cargarHistorialReparaciones = async (incidenteId) => {
+    const resultado = await obtenerReparacionesIncidente({
+      incidenteId,
+    });
+
+    if (resultado.error) {
+      console.error(
+        "[LIQUISISTEMA] No se pudo cargar el historial de reparaciones:",
+        resultado.error,
+      );
+
+      return;
+    }
+
+    setHistorialReparaciones((actual) => ({
+      ...actual,
+      [incidenteId]: resultado.data || [],
+    }));
+  };
   const cargarIncidentes = async () => {
     setCargandoIncidentes(true);
 
@@ -269,17 +388,30 @@ function SoporteDiagnostico() {
     try {
       const inicio = performance.now();
 
-      const { error } = await supabase.from("usuarios").select("id").limit(1);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      if (!supabaseUrl) {
+        throw new Error("No se encontró la URL de Supabase.");
+      }
+
+      const respuesta = await fetch(`${supabaseUrl}/auth/v1/health`, {
+        method: "GET",
+        headers: {
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+      });
 
       const tiempo = Math.round(performance.now() - inicio);
 
-      if (error) {
-        throw error;
+      if (!respuesta.ok) {
+        throw new Error(
+          `El servidor respondió con estado HTTP ${respuesta.status}.`,
+        );
       }
 
       actualizarPrueba("conexion", {
         estado: "ok",
-        mensaje: `Conexión establecida (${tiempo} ms).`,
+        mensaje: `Servidor disponible (${tiempo} ms).`,
       });
     } catch (error) {
       console.error("Diagnóstico - conexión:", error);
@@ -296,6 +428,7 @@ function SoporteDiagnostico() {
         mensaje: problema.descripcion,
         errorTecnico: problema.errorTecnico,
       });
+
       await registrarProblemaComoIncidente(problema, {
         error,
         prueba: "conexion",
@@ -418,40 +551,112 @@ function SoporteDiagnostico() {
         mensaje: "No se puede comprobar sin una sesión activa.",
       });
     }
-
     // ==========================================
     // 4. ORGANIZACIÓN
     // ==========================================
 
     if (usuarioAuth?.id && usuarioSistema) {
       try {
-        const { data, error } = await supabase.rpc(
-          "usuario_actual_organizacion",
-        );
+        // Obtener la organización actual usando la misma
+        // función que utiliza Liquisistema.
+        const { data: organizacionActual, error: errorOrganizacion } =
+          await supabase.rpc("usuario_actual_organizacion");
 
-        if (error) {
-          throw error;
-        }
-        if (!data) {
-          throw new Error("No se pudo determinar la organización actual.");
+        if (errorOrganizacion) {
+          throw errorOrganizacion;
         }
 
-        organizacionDetectada = data;
+        if (!organizacionActual) {
+          throw new Error(
+            "No se pudo determinar la organización actual del usuario.",
+          );
+        }
+
+        organizacionDetectada = organizacionActual;
+
+        // Comprobar que la organización realmente existe.
+        const { data: organizacion, error: errorConsultaOrganizacion } =
+          await supabase
+            .from("organizaciones")
+            .select("id")
+            .eq("id", organizacionActual)
+            .maybeSingle();
+
+        if (errorConsultaOrganizacion) {
+          throw errorConsultaOrganizacion;
+        }
+
+        if (!organizacion) {
+          throw new Error("La organización actual no existe en el sistema.");
+        }
+
+        // ==========================================
+        // VALIDACIÓN SEGÚN EL ROL
+        // ==========================================
+
+        if (usuarioSistema.rol === "domiciliario") {
+          // Los domiciliarios utilizan usuarios.organizacion_id.
+
+          if (!usuarioSistema.organizacion_id) {
+            throw new Error(
+              "El domiciliario no tiene una organización asignada.",
+            );
+          }
+
+          if (usuarioSistema.organizacion_id !== organizacionActual) {
+            throw new Error(
+              "La organización asignada al usuario no coincide con la organización actual.",
+            );
+          }
+        }
+
+        if (usuarioSistema.rol === "admin") {
+          // Los administradores utilizan usuarios_organizaciones.
+
+          const { data: relacion, error: errorRelacion } = await supabase
+            .from("usuarios_organizaciones")
+            .select("id, organizacion_id, estado")
+            .eq("usuario_id", usuarioAuth.id)
+            .eq("organizacion_id", organizacionActual)
+            .eq("estado", "activo")
+            .maybeSingle();
+
+          if (errorRelacion) {
+            throw errorRelacion;
+          }
+
+          if (!relacion) {
+            throw new Error(
+              "El administrador no tiene una relación activa con la organización actual.",
+            );
+          }
+        }
 
         setDatosDiagnostico((actual) => ({
           ...actual,
-          organizacionId: data,
+          organizacionId: organizacionActual,
         }));
 
         actualizarPrueba("organizacion", {
           estado: "ok",
-          mensaje: "La organización actual está disponible.",
+          mensaje:
+            usuarioSistema.rol === "admin"
+              ? "La organización es válida y la relación del administrador está activa."
+              : "La organización es válida y coincide con la asignada al usuario.",
         });
       } catch (error) {
         console.error("Diagnóstico - organización:", error);
+
         const problema = crearProblema({
           error,
           tipo: "ORGANIZATION_MISSING",
+          titulo: "Problema con la organización",
+          descripcion:
+            error?.message ||
+            "No se pudo validar correctamente la organización actual.",
+          solucion:
+            "Revisa la relación entre el usuario y la organización. No realices cambios manuales en la base de datos.",
+          gravedad: "alta",
         });
 
         problemasEncontrados.push(problema);
@@ -461,12 +666,15 @@ function SoporteDiagnostico() {
           mensaje: problema.descripcion,
           errorTecnico: problema.errorTecnico,
         });
+
         await registrarProblemaComoIncidente(problema, {
           error,
           prueba: "organizacion",
           operacion: "diagnostico_organizacion",
           contexto: {
-            servicio: "usuario_actual_organizacion",
+            usuarioId: usuarioAuth.id,
+            rol: usuarioSistema.rol,
+            organizacionDetectada: organizacionDetectada,
           },
         });
       }
@@ -476,27 +684,112 @@ function SoporteDiagnostico() {
         mensaje: "No se puede comprobar sin usuario activo.",
       });
     }
-
     // ==========================================
     // 5. BASE DE DATOS
     // ==========================================
 
     try {
-      const { error } = await supabase.from("usuarios").select("id").limit(1);
+      const tablasCriticas = [
+        {
+          nombre: "usuarios",
+          etiqueta: "usuarios",
+        },
+        {
+          nombre: "domicilios",
+          etiqueta: "domicilios",
+        },
+        {
+          nombre: "configuraciones_organizacion",
+          etiqueta: "configuraciones_organizacion",
+        },
+      ];
 
-      if (error) {
-        throw error;
+      const resultadosTablas = [];
+
+      for (const tabla of tablasCriticas) {
+        const inicioTabla = performance.now();
+
+        const { error } = await supabase
+          .from(tabla.nombre)
+          .select("id")
+          .limit(1);
+
+        const tiempoTabla = Math.round(performance.now() - inicioTabla);
+
+        if (error) {
+          resultadosTablas.push({
+            ...tabla,
+            estado: "error",
+            error,
+            tiempo: tiempoTabla,
+          });
+        } else {
+          resultadosTablas.push({
+            ...tabla,
+            estado: "ok",
+            error: null,
+            tiempo: tiempoTabla,
+          });
+        }
       }
 
-      actualizarPrueba("base_datos", {
-        estado: "ok",
-        mensaje: "La base de datos responde correctamente.",
-      });
+      const tablasConError = resultadosTablas.filter(
+        (resultado) => resultado.estado === "error",
+      );
+
+      if (tablasConError.length > 0) {
+        const primeraFalla = tablasConError[0];
+
+        const problema = crearProblema({
+          error: primeraFalla.error,
+          tipo: "UNKNOWN",
+          titulo: "Problema en la base de datos",
+          descripcion: `La tabla "${primeraFalla.etiqueta}" no respondió correctamente.`,
+          solucion:
+            "Revisa la disponibilidad de la tabla y su configuración de acceso. No realices cambios manuales en la base de datos.",
+          gravedad: "alta",
+        });
+
+        problemasEncontrados.push(problema);
+
+        actualizarPrueba("base_datos", {
+          estado: "error",
+          mensaje: `Se detectó un problema en ${primeraFalla.etiqueta}.`,
+          errorTecnico: primeraFalla.error?.message || null,
+        });
+
+        await registrarProblemaComoIncidente(problema, {
+          error: primeraFalla.error,
+          prueba: "base_datos",
+          operacion: "diagnostico_base_datos",
+          contexto: {
+            tablasComprobadas: resultadosTablas.map((resultado) => ({
+              tabla: resultado.etiqueta,
+              estado: resultado.estado,
+              tiempo: resultado.tiempo,
+            })),
+            tablaConError: primeraFalla.etiqueta,
+          },
+        });
+      } else {
+        actualizarPrueba("base_datos", {
+          estado: "ok",
+          mensaje: `Base de datos disponible. ${resultadosTablas.length} tablas comprobadas.`,
+          errorTecnico: null,
+        });
+      }
     } catch (error) {
       console.error("Diagnóstico - base de datos:", error);
 
       const problema = crearProblema({
         error,
+        tipo: "UNKNOWN",
+        titulo: "No se pudo comprobar la base de datos",
+        descripcion:
+          "Liquisistema no pudo completar la comprobación de la base de datos.",
+        solucion:
+          "Revisa la conexión con el servidor y vuelve a ejecutar el diagnóstico.",
+        gravedad: "alta",
       });
 
       problemasEncontrados.push(problema);
@@ -506,12 +799,13 @@ function SoporteDiagnostico() {
         mensaje: problema.descripcion,
         errorTecnico: problema.errorTecnico,
       });
+
       await registrarProblemaComoIncidente(problema, {
         error,
         prueba: "base_datos",
         operacion: "diagnostico_base_datos",
         contexto: {
-          tabla: "usuarios",
+          servicio: "Supabase",
         },
       });
     }
@@ -526,7 +820,19 @@ function SoporteDiagnostico() {
       try {
         const { data, error } = await supabase
           .from("configuraciones_organizacion")
-          .select("id, organizacion_id")
+          .select(
+            `
+        id,
+        organizacion_id,
+        horario_activo,
+        hora_inicio,
+        hora_fin,
+        dias_trabajo,
+        meses_trabajo,
+        periodo_estadisticas,
+        periodo_reportes
+      `,
+          )
           .eq("organizacion_id", organizacionId)
           .maybeSingle();
 
@@ -540,12 +846,141 @@ function SoporteDiagnostico() {
           );
         }
 
-        actualizarPrueba("configuracion", {
-          estado: "ok",
-          mensaje: "La configuración está disponible.",
-        });
+        const problemasConfiguracion = [];
+
+        // ==========================================
+        // VALIDAR HORARIO
+        // ==========================================
+
+        if (data.horario_activo) {
+          if (!data.hora_inicio || !data.hora_fin) {
+            problemasConfiguracion.push(
+              "El horario está activo, pero falta la hora de inicio o finalización.",
+            );
+          } else if (data.hora_inicio >= data.hora_fin) {
+            problemasConfiguracion.push(
+              "La hora de inicio debe ser anterior a la hora de finalización.",
+            );
+          }
+        }
+
+        // ==========================================
+        // VALIDAR DÍAS DE TRABAJO
+        // ==========================================
+
+        const diasTrabajo = data.dias_trabajo || {};
+
+        const diasActivos = Object.values(diasTrabajo).filter(
+          (dia) => dia === true,
+        ).length;
+
+        if (data.horario_activo && diasActivos === 0) {
+          problemasConfiguracion.push("No hay ningún día de trabajo activo.");
+        }
+
+        // ==========================================
+        // VALIDAR MESES DE TRABAJO
+        // ==========================================
+
+        const mesesTrabajo = data.meses_trabajo || {};
+
+        const mesesActivos = Object.values(mesesTrabajo).filter(
+          (mes) => mes === true,
+        ).length;
+
+        if (mesesActivos === 0) {
+          problemasConfiguracion.push("No hay ningún mes de trabajo activo.");
+        }
+
+        // ==========================================
+        // VALIDAR PERÍODO DE ESTADÍSTICAS
+        // ==========================================
+
+        const periodosEstadisticasValidos = ["anual", "trimestral"];
+
+        if (!periodosEstadisticasValidos.includes(data.periodo_estadisticas)) {
+          problemasConfiguracion.push(
+            "El período de estadísticas configurado no es válido.",
+          );
+        }
+
+        // ==========================================
+        // VALIDAR PERÍODO DE REPORTES
+        // ==========================================
+
+        const periodosReportesValidos = [
+          "manual",
+          "diario",
+          "semanal",
+          "mensual",
+          "anual",
+        ];
+
+        if (!periodosReportesValidos.includes(data.periodo_reportes)) {
+          problemasConfiguracion.push(
+            "El período de reportes configurado no es válido.",
+          );
+        }
+
+        // ==========================================
+        // RESULTADO DE LA VALIDACIÓN
+        // ==========================================
+
+        if (problemasConfiguracion.length > 0) {
+          const descripcion =
+            problemasConfiguracion.length === 1
+              ? problemasConfiguracion[0]
+              : `Se encontraron ${problemasConfiguracion.length} problemas en la configuración de la organización.`;
+
+          const detalleProblemas = problemasConfiguracion.join(" ");
+
+          const problema = crearProblema({
+            error: new Error(detalleProblemas),
+            tipo: "CONFIG_MISSING",
+            titulo: "Configuración de la organización requiere revisión",
+            descripcion,
+            solucion:
+              "Revisa la configuración de horario, días, meses y períodos desde Configuración → Preferencias de trabajo.",
+            gravedad: "media",
+          });
+
+          problemasEncontrados.push(problema);
+
+          actualizarPrueba("configuracion", {
+            estado: "error",
+            mensaje: descripcion,
+            errorTecnico: problema.errorTecnico,
+          });
+
+          await registrarProblemaComoIncidente(problema, {
+            error: new Error(detalleProblemas),
+            prueba: "configuracion",
+            operacion: "diagnostico_configuracion",
+            contexto: {
+              tabla: "configuraciones_organizacion",
+              organizacionId,
+              configuracionId: data.id,
+              problemas: problemasConfiguracion,
+              horarioActivo: data.horario_activo,
+              horaInicio: data.hora_inicio,
+              horaFin: data.hora_fin,
+              diasActivos,
+              mesesActivos,
+              periodoEstadisticas: data.periodo_estadisticas,
+              periodoReportes: data.periodo_reportes,
+            },
+          });
+        } else {
+          actualizarPrueba("configuracion", {
+            estado: "ok",
+            mensaje:
+              "La configuración está disponible y sus parámetros son válidos.",
+            errorTecnico: null,
+          });
+        }
       } catch (error) {
         console.error("Diagnóstico - configuración:", error);
+
         const problema = crearProblema({
           error,
           tipo: "CONFIG_MISSING",
@@ -558,6 +993,7 @@ function SoporteDiagnostico() {
           mensaje: problema.descripcion,
           errorTecnico: problema.errorTecnico,
         });
+
         await registrarProblemaComoIncidente(problema, {
           error,
           prueba: "configuracion",
@@ -600,7 +1036,20 @@ function SoporteDiagnostico() {
 
     setDiagnosticando(false);
   };
+  const irAProblema = (pruebaId) => {
+    setPruebaExpandida(pruebaId);
 
+    setTimeout(() => {
+      const elemento = document.getElementById(`prueba-${pruebaId}`);
+
+      if (elemento) {
+        elemento.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }, 50);
+  };
   const renderIconoEstado = (estado) => {
     if (estado === "ok") {
       return <CheckCircleIcon />;
@@ -723,6 +1172,133 @@ function SoporteDiagnostico() {
                 : "Pendiente"}
         </span>
       </section>
+      {/* RESUMEN INTELIGENTE */}
+      <section className={styles.seccion}>
+        <div className={styles.seccionTitulo}>
+          <InformationCircleIcon />
+
+          <div>
+            <h3>Resumen del estado</h3>
+
+            <p>Resumen de las comprobaciones realizadas en Liquisistema.</p>
+          </div>
+        </div>
+
+        <div className={styles.resumenSistema}>
+          <div className={styles.resumenSistemaPrincipal}>
+            <div
+              className={`${styles.resumenSistemaIcono} ${
+                estadoResumen === "ok"
+                  ? styles.resumenSistemaOk
+                  : estadoResumen === "warning"
+                    ? styles.resumenSistemaWarning
+                    : estadoResumen === "critical"
+                      ? styles.resumenSistemaCritical
+                      : styles.resumenSistemaPendiente
+              }`}
+            >
+              {estadoResumen === "ok" ? (
+                <CheckCircleIcon />
+              ) : estadoResumen === "warning" ? (
+                <ExclamationTriangleIcon />
+              ) : estadoResumen === "critical" ? (
+                <XCircleIcon />
+              ) : (
+                <InformationCircleIcon />
+              )}
+            </div>
+
+            <div>
+              <span>ESTADO GENERAL</span>
+
+              <strong>
+                {estadoResumen === "ok"
+                  ? "Sistema operativo"
+                  : estadoResumen === "warning"
+                    ? "Requiere atención"
+                    : estadoResumen === "critical"
+                      ? "Problema crítico"
+                      : "Diagnóstico pendiente"}
+              </strong>
+
+              <p>
+                {estadoResumen === "critical"
+                  ? totalIncidentesCriticosPendientes > 0
+                    ? `Se detectó ${
+                        totalIncidentesCriticosPendientes === 1
+                          ? "1 incidente crítico pendiente"
+                          : `${totalIncidentesCriticosPendientes} incidentes críticos pendientes`
+                      } que requiere atención inmediata.`
+                    : problemasCriticos > 0
+                      ? `Se detectó ${
+                          problemasCriticos === 1
+                            ? "1 problema crítico"
+                            : `${problemasCriticos} problemas críticos`
+                        } durante el diagnóstico.`
+                      : "El sistema presenta una condición crítica."
+                  : estadoResumen === "warning"
+                    ? totalIncidentesPendientes > 0
+                      ? `Hay ${
+                          totalIncidentesPendientes === 1
+                            ? "1 incidente pendiente"
+                            : `${totalIncidentesPendientes} incidentes pendientes`
+                        } que requiere revisión.`
+                      : pruebasConError.length > 0
+                        ? `La comprobación ${
+                            pruebasConError.length === 1
+                              ? `"${pruebasConError[0].nombre}"`
+                              : "de uno o más servicios"
+                          } requiere revisión.`
+                        : "Algunas comprobaciones requieren atención."
+                    : estadoResumen === "ok"
+                      ? "Todas las comprobaciones funcionan correctamente y no hay incidentes pendientes."
+                      : "Ejecuta un diagnóstico para conocer el estado actual del sistema."}
+              </p>
+              {pruebasConError.length > 0 && (
+                <button
+                  type="button"
+                  className={styles.botonVerProblema}
+                  onClick={() => irAProblema(pruebasConError[0].id)}
+                >
+                  Ver comprobación
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.resumenSistemaDatos}>
+            <div>
+              <strong>{totalPruebas}</strong>
+              <span>Comprobaciones</span>
+            </div>
+
+            <div>
+              <strong>{pruebasCorrectas}</strong>
+              <span>Correctas</span>
+            </div>
+
+            <div>
+              <strong>{pruebasConProblema}</strong>
+              <span>Con problemas</span>
+            </div>
+
+            <div>
+              <strong>{totalIncidentesCriticosPendientes}</strong>
+              <span>Críticas pendientes</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.resumenSistemaPie}>
+          <span>Última comprobación</span>
+
+          <strong>
+            {ultimaComprobacion
+              ? ultimaComprobacion.toLocaleString("es-CO")
+              : "Todavía no se ha ejecutado"}
+          </strong>
+        </div>
+      </section>
 
       {/* DIAGNÓSTICO */}
       <section className={styles.seccion}>
@@ -744,7 +1320,11 @@ function SoporteDiagnostico() {
 
         <div className={styles.pruebas}>
           {pruebas.map((prueba) => (
-            <div className={styles.pruebaContenedor} key={prueba.id}>
+            <div
+              className={styles.pruebaContenedor}
+              key={prueba.id}
+              id={`prueba-${prueba.id}`}
+            >
               <button
                 type="button"
                 className={styles.prueba}
@@ -869,13 +1449,11 @@ function SoporteDiagnostico() {
                         : "Media"}
                   </span>
                   <span className={styles.estadoIncidente}>
-                    {incidente.estado === "resuelto"
-                      ? "✓ Resuelto"
-                      : incidente.estado === "en_revision"
-                        ? "◐ En revisión"
-                        : incidente.estado === "ignorado"
-                          ? "— Ignorado"
-                          : "● Pendiente"}
+                    {problema.gravedad === "critica"
+                      ? "🔴 Crítico"
+                      : problema.gravedad === "alta"
+                        ? "🟠 Atención"
+                        : "🟡 Revisar"}
                   </span>
                 </div>
 
@@ -1011,13 +1589,15 @@ function SoporteDiagnostico() {
                 <button
                   type="button"
                   className={styles.incidenteCabecera}
-                  onClick={() =>
-                    setIncidenteSeleccionado(
-                      incidenteSeleccionado === incidente.id
-                        ? null
-                        : incidente.id,
-                    )
-                  }
+                  onClick={() => {
+                    const abrir = incidenteSeleccionado !== incidente.id;
+
+                    setIncidenteSeleccionado(abrir ? incidente.id : null);
+
+                    if (abrir) {
+                      cargarHistorialReparaciones(incidente.id);
+                    }
+                  }}
                 >
                   <div className={styles.incidenteIcono}>
                     {incidente.gravedad === "critica" ? (
@@ -1106,7 +1686,190 @@ function SoporteDiagnostico() {
                           "No hay una solución registrada para este incidente."}
                       </span>
                     </div>
+                    {(() => {
+                      const politica = obtenerPoliticaReparacion(
+                        incidente.codigo_error,
+                      );
 
+                      const incidenteResuelto =
+                        incidente.estado === "resuelto" ||
+                        incidente.estado === "ignorado";
+
+                      if (incidenteResuelto) {
+                        return (
+                          <div
+                            className={`${styles.politicaReparacion} ${styles.politicaResuelta}`}
+                          >
+                            <div className={styles.politicaReparacionIcono}>
+                              ✓
+                            </div>
+
+                            <div className={styles.politicaReparacionContenido}>
+                              <strong>
+                                {incidente.estado === "resuelto"
+                                  ? "Incidente resuelto"
+                                  : "Incidente ignorado"}
+                              </strong>
+
+                              <span>
+                                {incidente.estado === "resuelto"
+                                  ? "Este incidente ya fue gestionado y no requiere ninguna acción."
+                                  : "Este incidente fue marcado como ignorado y no requiere ninguna acción."}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          className={`${styles.politicaReparacion} ${
+                            politica.nivel === "reparable"
+                              ? styles.politicaReparable
+                              : politica.nivel === "critico"
+                                ? styles.politicaCritica
+                                : styles.politicaRevision
+                          }`}
+                        >
+                          <div className={styles.politicaReparacionIcono}>
+                            {politica.nivel === "reparable"
+                              ? "🔄"
+                              : politica.nivel === "critico"
+                                ? "🛡️"
+                                : "⚠️"}
+                          </div>
+
+                          <div className={styles.politicaReparacionContenido}>
+                            <strong>
+                              {politica.nivel === "reparable"
+                                ? "Reparación segura disponible"
+                                : politica.nivel === "critico"
+                                  ? "Requiere soporte técnico"
+                                  : "Requiere revisión"}
+                            </strong>
+
+                            <span>{politica.descripcion}</span>
+                            {politica.nivel === "reparable" &&
+                              politica.accion &&
+                              incidente.estado === "pendiente" && (
+                                <button
+                                  type="button"
+                                  className={styles.botonReparar}
+                                  onClick={() => repararIncidente(incidente)}
+                                  disabled={reparandoIncidente === incidente.id}
+                                >
+                                  {reparandoIncidente === incidente.id
+                                    ? "Reparando..."
+                                    : "🔄 Reintentar conexión"}
+                                </button>
+                              )}
+                            {resultadoReparacion[incidente.id] && (
+                              <div
+                                className={`${styles.resultadoReparacion} ${
+                                  resultadoReparacion[incidente.id].exito
+                                    ? styles.resultadoReparacionExito
+                                    : styles.resultadoReparacionError
+                                }`}
+                              >
+                                <strong>
+                                  {resultadoReparacion[incidente.id].bloqueada
+                                    ? "🛡️ Reparación automática detenida"
+                                    : resultadoReparacion[incidente.id].exito
+                                      ? "✓ Reparación completada"
+                                      : "✕ La reparación no solucionó el problema"}
+                                </strong>
+
+                                <span>
+                                  {resultadoReparacion[incidente.id].mensaje}
+                                </span>
+
+                                {resultadoReparacion[incidente.id]
+                                  .errorTecnico && (
+                                  <code>
+                                    {
+                                      resultadoReparacion[incidente.id]
+                                        .errorTecnico
+                                    }
+                                  </code>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {historialReparaciones[incidente.id] && (
+                      <div className={styles.historialReparaciones}>
+                        <div className={styles.historialReparacionesTitulo}>
+                          <strong>🔧 Historial de reparaciones</strong>
+
+                          <span>
+                            {historialReparaciones[incidente.id].length}{" "}
+                            {historialReparaciones[incidente.id].length === 1
+                              ? "intento"
+                              : "intentos"}
+                          </span>
+                        </div>
+
+                        {historialReparaciones[incidente.id].length === 0 ? (
+                          <p className={styles.sinReparaciones}>
+                            No se han realizado intentos de reparación.
+                          </p>
+                        ) : (
+                          <div className={styles.listaReparaciones}>
+                            {historialReparaciones[incidente.id].map(
+                              (reparacion) => (
+                                <div
+                                  key={reparacion.id}
+                                  className={styles.reparacionHistorialItem}
+                                >
+                                  <div
+                                    className={
+                                      reparacion.resultado === "exitoso"
+                                        ? styles.reparacionIconoExito
+                                        : styles.reparacionIconoError
+                                    }
+                                  >
+                                    {reparacion.resultado === "exitoso"
+                                      ? "✓"
+                                      : "✕"}
+                                  </div>
+
+                                  <div
+                                    className={
+                                      styles.reparacionHistorialContenido
+                                    }
+                                  >
+                                    <strong>
+                                      {reparacion.resultado === "exitoso"
+                                        ? "Reparación exitosa"
+                                        : "Reparación fallida"}
+                                    </strong>
+
+                                    <span>Acción: {reparacion.accion}</span>
+
+                                    {reparacion.mensaje && (
+                                      <span>{reparacion.mensaje}</span>
+                                    )}
+
+                                    {reparacion.error_tecnico && (
+                                      <code>{reparacion.error_tecnico}</code>
+                                    )}
+
+                                    <small>
+                                      {new Date(
+                                        reparacion.created_at,
+                                      ).toLocaleString("es-CO")}
+                                    </small>
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* INFORMACIÓN TÉCNICA */}
                     <div className={styles.detallesTecnicosIncidente}>
                       <div>
