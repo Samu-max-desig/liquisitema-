@@ -200,7 +200,32 @@
 .lqTextarea {
   grid-column: span 2;
 }
+.lqFormActions {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
+.lqFormActions button {
+  width: 100%;
+}
+
+.lqReportButton {
+  border: none;
+  background: #dc2626 !important;
+  color: white;
+  padding: 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.lqReportButton:hover {
+  background: #b91c1c !important;
+  transform: translateY(-1px);
+}
 .lqSaveButton {
   grid-column: span 2;
 }
@@ -1623,6 +1648,11 @@ CELULARES Y TABLETS
   .lqNotificationItemContent span {
     font-size: 10px;
   }
+  .lqTextarea,
+.lqSaveButton,
+.lqFormActions {
+  grid-column: span 1;
+}
 }
 
 
@@ -1921,38 +1951,54 @@ CELULARES PEQUEÑOS
   }
 }
 
-/* ==========================================
-   MODAL EDITAR DOMICILIO
-   ========================================== */
+/* =========================================================
+   MODAL SOLUCIONAR DOMICILIO REPORTADO
+   ========================================================= */
 
-.lqEditModalOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(15, 23, 42, 0.62);
-  backdrop-filter: blur(4px);
+.lqModalOverlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 24px !important;
+
+  background: rgba(15, 23, 42, 0.72) !important;
+
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
 }
 
-.lqEditModal {
-  width: 100%;
-  max-width: 620px;
-  max-height: 90vh;
-  overflow-y: auto;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.25);
-  animation: lqEditModalEntrada 0.2s ease-out;
+/* MODAL EXCLUSIVO */
+
+.lqModalSolucionReportado {
+  width: 100% !important;
+  max-width: 540px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  overflow: hidden !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #e5eaf1 !important;
+  border-radius: 20px !important;
+
+  box-shadow:
+    0 35px 90px rgba(15, 23, 42, 0.30),
+    0 10px 30px rgba(15, 23, 42, 0.12) !important;
+
+  animation: modalSolucionEntrada 0.22s ease-out !important;
 }
 
-@keyframes lqEditModalEntrada {
+@keyframes modalSolucionEntrada {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+    transform: translateY(15px) scale(0.97);
   }
 
   to {
@@ -1961,289 +2007,463 @@ CELULARES PEQUEÑOS
   }
 }
 
-/* ==========================================
+
+/* =========================================================
    HEADER
-   ========================================== */
+   ========================================================= */
 
-.lqEditModalHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 20px 22px 17px;
-  border-bottom: 1px solid #e2e8f0;
+.lqModalSolucionReportado .lqModalHeader {
+  position: relative;
+
+  display: flex !important;
+  align-items: flex-start !important;
+
+  padding: 25px 28px 22px !important;
+
+  background: #ffffff !important;
+
+  border-bottom: 1px solid #edf1f5 !important;
 }
 
-.lqEditModalHeader h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 19px;
-  font-weight: 700;
-}
-
-.lqEditModalHeader p {
-  margin: 5px 0 0;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.lqEditModalClose {
-  width: 35px;
-  height: 35px;
-  min-width: 35px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 9px;
-  background: #f1f5f9;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.lqEditModalClose:hover:not(:disabled) {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.lqEditModalClose:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.lqEditModalClose svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* ==========================================
-   BODY
-   ========================================== */
-
-.lqEditModalBody {
-  padding: 22px;
-}
-
-.lqEditGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.lqEditField {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.lqEditFull {
-  grid-column: 1 / -1;
-}
-
-.lqEditField label {
-  color: #334155;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.lqEditField input,
-.lqEditField select {
+.lqModalSolucionReportado .lqModalHeader > div:first-child {
   width: 100%;
-  height: 43px;
-  box-sizing: border-box;
-  padding: 0 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 9px;
-  outline: none;
-  background: #f8fafc;
-  color: #0f172a;
-  font-family: inherit;
-  font-size: 12px;
-  transition: all 0.2s ease;
+
+  padding-right: 45px;
 }
 
-.lqEditField input:focus,
-.lqEditField select:focus {
-  border-color: #2563eb;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09);
+.lqModalSolucionReportado .lqModalHeader h2 {
+  margin: 0 !important;
+
+  color: #172033 !important;
+
+  font-size: 21px !important;
+  line-height: 1.25 !important;
+  font-weight: 750 !important;
+
+  letter-spacing: -0.4px !important;
 }
 
-.lqEditField input:disabled,
-.lqEditField select:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.lqModalSolucionReportado .lqModalHeader p {
+  margin: 7px 0 0 !important;
+
+  color: #718096 !important;
+
+  font-size: 13px !important;
+  line-height: 1.45 !important;
 }
 
-/* ==========================================
-   INFORMACIÓN DEL DOMICILIO
-   ========================================== */
 
-.lqEditInfo {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid #e2e8f0;
+/* =========================================================
+   BOTÓN X
+   ========================================================= */
+
+/*
+   El cuadro gris que aparece arriba a la derecha
+   viene de este botón.
+*/
+
+.lqModalSolucionReportado .lqModalHeader > button {
+  position: absolute !important;
+
+  top: 20px !important;
+  right: 22px !important;
+
+  width: 36px !important;
+  height: 36px !important;
+
+  min-width: 36px !important;
+  min-height: 36px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+
+  background: #f8fafc !important;
+  color: #64748b !important;
+
+  outline: none !important;
+
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  cursor: pointer !important;
+
+  box-shadow: none !important;
+
+  transition: all 0.18s ease !important;
 }
 
-.lqEditInfo div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 11px 12px;
-  border-radius: 9px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+.lqModalSolucionReportado .lqModalHeader > button:hover {
+  background: #f1f5f9 !important;
+
+  border-color: #cbd5e1 !important;
+
+  color: #1e293b !important;
+
+  transform: scale(1.04);
 }
 
-.lqEditInfo span {
-  color: #94a3b8;
-  font-size: 9px;
-  font-weight: 500;
+.lqModalSolucionReportado .lqModalHeader > button svg {
+  width: 19px !important;
+  height: 19px !important;
+
+  stroke-width: 2 !important;
 }
 
-.lqEditInfo strong {
-  color: #334155;
-  font-size: 11px;
-  font-weight: 600;
+
+/* =========================================================
+   BODY
+   ========================================================= */
+
+.lqModalSolucionReportado .lqModalBody {
+  padding: 25px 28px 27px !important;
+
+  background: #ffffff !important;
 }
 
-/* ==========================================
+
+/* =========================================================
+   TARJETAS DE INFORMACIÓN
+   ========================================================= */
+
+.lqModalSolucionReportado .lqEditInfo {
+  display: grid !important;
+
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+
+  gap: 10px !important;
+
+  margin: 0 0 24px !important;
+  padding: 0 !important;
+
+  border: none !important;
+}
+
+.lqModalSolucionReportado .lqEditInfo > div {
+  min-width: 0 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+
+  gap: 6px !important;
+
+  padding: 14px 15px !important;
+
+  background: #f8fafc !important;
+
+  border: 1px solid #e7edf4 !important;
+  border-radius: 12px !important;
+}
+
+.lqModalSolucionReportado .lqEditInfo span {
+  color: #94a3b8 !important;
+
+  font-size: 10px !important;
+  font-weight: 700 !important;
+
+  text-transform: uppercase !important;
+  letter-spacing: 0.45px !important;
+}
+
+.lqModalSolucionReportado .lqEditInfo strong {
+  color: #334155 !important;
+
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+
+/* =========================================================
+   CAMPOS
+   ========================================================= */
+
+.lqModalSolucionReportado .lqEditField {
+  display: flex !important;
+  flex-direction: column !important;
+
+  gap: 8px !important;
+
+  margin-bottom: 19px !important;
+}
+
+.lqModalSolucionReportado .lqEditField label {
+  color: #334155 !important;
+
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.lqModalSolucionReportado .lqEditField input,
+.lqModalSolucionReportado .lqEditField select {
+  width: 100% !important;
+  height: 47px !important;
+
+  box-sizing: border-box !important;
+
+  padding: 0 14px !important;
+
+  border: 1px solid #d6dee9 !important;
+  border-radius: 11px !important;
+
+  background: #ffffff !important;
+
+  color: #172033 !important;
+
+  font-family: inherit !important;
+  font-size: 13px !important;
+
+  outline: none !important;
+
+  box-shadow: none !important;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease !important;
+}
+
+.lqModalSolucionReportado .lqEditField input::placeholder {
+  color: #a4afbf !important;
+}
+
+.lqModalSolucionReportado .lqEditField input:hover,
+.lqModalSolucionReportado .lqEditField select:hover {
+  border-color: #b9c5d4 !important;
+}
+
+.lqModalSolucionReportado .lqEditField input:focus,
+.lqModalSolucionReportado .lqEditField select:focus {
+  border-color: #2563eb !important;
+
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.10) !important;
+}
+
+
+/* =========================================================
+   PROBLEMA REPORTADO
+   ========================================================= */
+
+.lqModalSolucionReportado .lqModalBody > .lqEditInfo:last-child {
+  display: block !important;
+
+  margin: 5px 0 0 !important;
+
+  padding: 15px 17px 15px 19px !important;
+
+  background: #fff7f5 !important;
+
+  border: 1px solid #fedbd5 !important;
+
+  border-radius: 12px !important;
+
+  position: relative !important;
+}
+
+.lqModalSolucionReportado .lqModalBody > .lqEditInfo:last-child::before {
+  content: "" !important;
+
+  position: absolute !important;
+
+  left: 0 !important;
+  top: 11px !important;
+  bottom: 11px !important;
+
+  width: 3px !important;
+
+  background: #ef4444 !important;
+
+  border-radius: 0 3px 3px 0 !important;
+}
+
+.lqModalSolucionReportado
+  .lqModalBody
+  > .lqEditInfo:last-child
+  > div {
+  display: flex !important;
+  flex-direction: column !important;
+
+  gap: 6px !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+
+  border: none !important;
+}
+
+.lqModalSolucionReportado
+  .lqModalBody
+  > .lqEditInfo:last-child
+  span {
+  color: #dc6b5d !important;
+}
+
+.lqModalSolucionReportado
+  .lqModalBody
+  > .lqEditInfo:last-child
+  strong {
+  color: #7f1d1d !important;
+
+  white-space: normal !important;
+}
+
+
+/* =========================================================
    FOOTER
-   ========================================== */
+   ========================================================= */
 
-.lqEditModalFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 9px;
-  padding: 15px 22px 20px;
-  border-top: 1px solid #e2e8f0;
+.lqModalSolucionReportado .lqEditModalFooter {
+  display: flex !important;
+
+  align-items: center !important;
+  justify-content: flex-end !important;
+
+  gap: 10px !important;
+
+  padding: 18px 28px 23px !important;
+
+  background: #ffffff !important;
+
+  border-top: 1px solid #edf1f5 !important;
 }
 
-.lqEditCancel,
-.lqEditSave {
-  height: 40px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 9px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+
+/* =========================================================
+   BOTONES
+   ========================================================= */
+
+.lqModalSolucionReportado .lqEditCancel,
+.lqModalSolucionReportado .lqEditSave {
+  height: 43px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 0 19px !important;
+
+  border-radius: 10px !important;
+
+  font-family: inherit !important;
+
+  font-size: 12px !important;
+  font-weight: 700 !important;
+
+  cursor: pointer !important;
+
+  transition: all 0.18s ease !important;
 }
 
-.lqEditCancel {
-  background: #f1f5f9;
-  color: #475569;
+.lqModalSolucionReportado .lqEditCancel {
+  min-width: 95px !important;
+
+  background: #f1f5f9 !important;
+
+  color: #475569 !important;
+
+  border: 1px solid #e5eaf0 !important;
 }
 
-.lqEditCancel:hover:not(:disabled) {
-  background: #e2e8f0;
+.lqModalSolucionReportado .lqEditCancel:hover {
+  background: #e8edf3 !important;
 }
 
-.lqEditSave {
-  background: #2563eb;
-  color: #ffffff;
+.lqModalSolucionReportado .lqEditSave {
+  min-width: 190px !important;
+
+  background: #2563eb !important;
+
+  color: #ffffff !important;
+
+  border: 1px solid #2563eb !important;
+
+  box-shadow: 0 5px 14px rgba(37, 99, 235, 0.20) !important;
 }
 
-.lqEditSave:hover:not(:disabled) {
-  background: #1d4ed8;
+.lqModalSolucionReportado .lqEditSave:hover {
+  background: #1d4ed8 !important;
+
+  border-color: #1d4ed8 !important;
+
+  transform: translateY(-1px);
+
+  box-shadow: 0 7px 18px rgba(37, 99, 235, 0.27) !important;
 }
 
-.lqEditCancel:disabled,
-.lqEditSave:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
 
-/* ==========================================
-   SCROLLBAR DEL MODAL
-   ========================================== */
-
-.lqEditModal::-webkit-scrollbar {
-  width: 6px;
-}
-
-.lqEditModal::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.lqEditModal::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 10px;
-}
-
-/* ==========================================
+/* =========================================================
    RESPONSIVE
-   ========================================== */
+   ========================================================= */
 
-@media (max-width: 650px) {
-  .lqEditModalOverlay {
-    align-items: flex-end;
-    padding: 10px;
+@media (max-width: 600px) {
+
+  .lqModalOverlay {
+    padding: 12px !important;
+
+    align-items: center !important;
   }
 
-  .lqEditModal {
-    max-width: none;
-    max-height: 94vh;
-    border-radius: 16px 16px 12px 12px;
+  .lqModalSolucionReportado {
+    max-width: 100% !important;
+
+    border-radius: 18px !important;
   }
 
-  .lqEditGrid {
-    grid-template-columns: 1fr;
-    gap: 13px;
+  .lqModalSolucionReportado .lqModalHeader {
+    padding: 21px 20px 19px !important;
   }
 
-  .lqEditFull {
-    grid-column: auto;
+  .lqModalSolucionReportado .lqModalBody {
+    padding: 20px !important;
   }
 
-  .lqEditModalHeader {
-    padding: 17px;
+  .lqModalSolucionReportado .lqEditInfo {
+    grid-template-columns: 1fr !important;
   }
 
-  .lqEditModalBody {
-    padding: 18px 17px;
-  }
-
-  .lqEditInfo {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .lqEditModalFooter {
-    padding: 13px 17px 17px;
-  }
-
-  .lqEditCancel,
-  .lqEditSave {
-    flex: 1;
+  .lqModalSolucionReportado .lqEditModalFooter {
+    padding: 16px 20px 20px !important;
   }
 }
 
-@media (max-width: 400px) {
-  .lqEditInfo {
-    grid-template-columns: 1fr;
+@media (max-width: 430px) {
+
+  .lqModalSolucionReportado .lqModalHeader h2 {
+    font-size: 18px !important;
   }
 
-  .lqEditModalFooter {
-    flex-direction: column-reverse;
+  .lqModalSolucionReportado .lqModalHeader p {
+    font-size: 12px !important;
   }
 
-  .lqEditCancel,
-  .lqEditSave {
-    width: 100%;
+  .lqModalSolucionReportado .lqModalHeader > button {
+    right: 16px !important;
+    top: 16px !important;
+  }
+
+  .lqModalSolucionReportado .lqModalBody {
+    padding: 17px !important;
+  }
+
+  .lqModalSolucionReportado .lqEditModalFooter {
+    flex-direction: column-reverse !important;
+  }
+
+  .lqModalSolucionReportado .lqEditCancel,
+  .lqModalSolucionReportado .lqEditSave {
+    width: 100% !important;
   }
 }
-
-:global(.swal2-container) {
-  z-index: 2147483647 !important;
-}
-
 /* =========================
    BUSCADOR DE CLIENTES
 ========================= */
@@ -2493,4 +2713,8 @@ CELULARES PEQUEÑOS
   background: #d1d5db;
   transform: none;
   box-shadow: none;
+}
+/* SweetAlert por encima de cualquier modal de Liquisistema */
+.swalSobreModal {
+  z-index: 200000 !important;
 }

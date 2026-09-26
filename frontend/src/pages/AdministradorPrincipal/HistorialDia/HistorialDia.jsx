@@ -3,13 +3,10 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ClockIcon,
-  UserGroupIcon,
-  BanknotesIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 
 import { supabase } from "../../../config/supabase";
+import Swal from "sweetalert2";
 
 import styles from "./HistorialDia.module.css";
 
@@ -24,20 +21,22 @@ export default function HistorialDia() {
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [metodoFiltro, setMetodoFiltro] = useState("todos");
 
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(() => {
+    const hoy = new Date();
+    const offset = hoy.getTimezoneOffset();
+    return new Date(hoy.getTime() - offset * 60000).toISOString().split("T")[0];
+  });
+
+  const [organizacionActual, setOrganizacionActual] = useState("");
+
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [fechaSeleccionada]);
 
   const cargarDatos = async () => {
     setCargando(true);
 
     try {
-      const inicioDelDia = new Date();
-      inicioDelDia.setHours(0, 0, 0, 0);
-
-      const inicioDelDiaSiguiente = new Date(inicioDelDia);
-      inicioDelDiaSiguiente.setDate(inicioDelDiaSiguiente.getDate() + 1);
-
       const {
         data: { user },
         error: errorAuth,
@@ -96,12 +95,12 @@ export default function HistorialDia() {
       console.log("USUARIO ACTUAL:", usuarioActual);
       console.log("ORGANIZACIÓN FINAL:", organizacionId);
 
+      setOrganizacionActual(organizacionId || "");
+
       let consultaDomicilios = supabase
         .from("domicilios")
         .select("*")
-        .gte("created_at", inicioDelDia.toISOString())
-        .lt("created_at", inicioDelDiaSiguiente.toISOString())
-        .is("cierre_id", null);
+        .eq("fecha", fechaSeleccionada);
 
       if (!organizacionId) {
         console.error("El usuario no tiene organización asignada.");
@@ -248,6 +247,112 @@ export default function HistorialDia() {
     };
   }, [domiciliosFiltrados]);
 
+  const marcarComoPagado = async (domicilio) => {
+    if (!domicilio?.id || domicilio.estado !== "Entregado") return;
+
+    if (!organizacionActual) {
+      Swal.fire({
+        icon: "error",
+        title: "Organización no disponible",
+        text: "No se pudo determinar la organización del administrador.",
+      });
+      return;
+    }
+
+    const { value: clave } = await Swal.fire({
+      title: "Confirmar pago",
+      html: `
+        <p style="margin-bottom: 12px;">
+          Vas a marcar como <strong>Pagado</strong> el domicilio de
+          <strong>${domicilio.cliente || "este cliente"}</strong>.
+        </p>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 10px;">
+          Ingresa la clave dinámica de edición.
+        </p>
+      `,
+      input: "text",
+      inputPlaceholder: "Clave dinámica",
+      inputAttributes: {
+        maxlength: "6",
+        inputmode: "numeric",
+        autocomplete: "off",
+      },
+      showCancelButton: true,
+      confirmButtonText: "Confirmar pago",
+      cancelButtonText: "Cancelar",
+      reverseButtons: true,
+      inputValidator: (value) => {
+        if (!value?.trim()) return "Ingresa la clave dinámica.";
+        return undefined;
+      },
+    });
+
+    if (!clave) return;
+
+    const { data: validacion, error: errorClave } = await supabase.rpc(
+      "validar_y_consumir_clave_edicion",
+      {
+        p_clave: clave.trim(),
+        p_organizacion_id: organizacionActual,
+      },
+    );
+
+    if (errorClave) {
+      console.error("Error validando clave:", errorClave);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo validar la clave dinámica.",
+      });
+      return;
+    }
+
+    if (!validacion?.valida) {
+      Swal.fire({
+        icon: "error",
+        title: "Clave no válida",
+        text:
+          validacion?.mensaje ||
+          "La clave es incorrecta, ya fue utilizada o ha expirado.",
+      });
+      return;
+    }
+
+    const { data: domicilioActualizado, error: errorActualizacion } =
+      await supabase
+        .from("domicilios")
+        .update({ estado: "Pagado" })
+        .eq("id", domicilio.id)
+        .eq("organizacion_id", organizacionActual)
+        .eq("estado", "Entregado")
+        .select()
+        .single();
+
+    if (errorActualizacion) {
+      console.error("Error actualizando domicilio:", errorActualizacion);
+      Swal.fire({
+        icon: "error",
+        title: "No se pudo actualizar",
+        text: "La clave fue validada, pero el domicilio no pudo marcarse como pagado.",
+      });
+      return;
+    }
+
+    setDomicilios((prev) =>
+      prev.map((item) =>
+        item.id === domicilioActualizado.id ? domicilioActualizado : item,
+      ),
+    );
+
+    Swal.fire({
+      icon: "success",
+      title: "Pago confirmado",
+      text: "El domicilio ahora está marcado como Pagado.",
+      timer: 1800,
+      showConfirmButton: false,
+    });
+  };
+
   return (
     <div className={styles.historialDia}>
       {/* HEADER */}
@@ -260,61 +365,40 @@ export default function HistorialDia() {
 
         <div className={styles.historialDiaFecha}>
           <ClockIcon />
-          {new Date().toLocaleDateString("es-CO", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })}
+          {new Date(`${fechaSeleccionada}T12:00:00`).toLocaleDateString(
+            "es-CO",
+            {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            },
+          )}
         </div>
       </div>
 
-      {/* RESUMEN */}
+      {/* SELECTOR DE FECHA */}
 
-      <section className={styles.historialDiaResumen}>
-        <div className={styles.historialDiaResumenCard}>
-          <div className={styles.historialDiaResumenIcon}>
-            <UserGroupIcon />
-          </div>
-
-          <div>
-            <span>Domicilios</span>
-            <strong>{cargando ? "..." : estadisticas.total}</strong>
-          </div>
+      <section className={styles.historialDiaFechaPanel}>
+        <div>
+          <span>Fecha del historial</span>
+          <p>Consulta los domicilios registrados en cualquier fecha.</p>
         </div>
 
-        <div className={styles.historialDiaResumenCard}>
-          <div className={styles.historialDiaResumenIcon}>
-            <CheckCircleIcon />
-          </div>
-
-          <div>
-            <span>Pagados</span>
-            <strong>{cargando ? "..." : estadisticas.pagados}</strong>
-          </div>
-        </div>
-
-        <div className={styles.historialDiaResumenCard}>
-          <div className={styles.historialDiaResumenIcon}>
-            <ExclamationCircleIcon />
-          </div>
-
-          <div>
-            <span>Pendientes</span>
-            <strong>{cargando ? "..." : estadisticas.pendientes}</strong>
-          </div>
-        </div>
-
-        <div className={styles.historialDiaResumenCard}>
-          <div className={styles.historialDiaResumenIcon}>
-            <BanknotesIcon />
-          </div>
-
-          <div>
-            <span>Recaudado</span>
-            <strong>
-              {cargando ? "..." : formatoDinero(estadisticas.recaudado)}
-            </strong>
-          </div>
+        <div className={styles.historialDiaFechaControl}>
+          <ClockIcon />
+          <input
+            type="date"
+            value={fechaSeleccionada}
+            onChange={(e) => setFechaSeleccionada(e.target.value)}
+            max={(() => {
+              const hoy = new Date();
+              const offset = hoy.getTimezoneOffset();
+              return new Date(hoy.getTime() - offset * 60000)
+                .toISOString()
+                .split("T")[0];
+            })()}
+          />
         </div>
       </section>
 
@@ -324,7 +408,7 @@ export default function HistorialDia() {
         <div className={styles.historialDiaFiltrosHeader}>
           <div>
             <h2>Movimientos</h2>
-            <p>Filtra los domicilios registrados durante el día.</p>
+            <p>Filtra los domicilios de la fecha seleccionada.</p>
           </div>
 
           <FunnelIcon />
@@ -361,7 +445,10 @@ export default function HistorialDia() {
           >
             <option value="todos">Todos los estados</option>
             <option value="Pendiente">Pendiente</option>
+            <option value="Entregado">Entregado</option>
             <option value="Pagado">Pagado</option>
+            <option value="Reportado">Reportado</option>
+            <option value="Cancelado">Cancelado</option>
           </select>
 
           <select
@@ -391,19 +478,20 @@ export default function HistorialDia() {
                 <th>Costo</th>
                 <th>Método</th>
                 <th>Estado</th>
+                <th>Acción</th>
               </tr>
             </thead>
 
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan="7" className={styles.historialDiaTablaVacia}>
+                  <td colSpan="8" className={styles.historialDiaTablaVacia}>
                     Cargando historial...
                   </td>
                 </tr>
               ) : domiciliosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className={styles.historialDiaTablaVacia}>
+                  <td colSpan="8" className={styles.historialDiaTablaVacia}>
                     No hay movimientos que coincidan con los filtros.
                   </td>
                 </tr>
@@ -443,12 +531,34 @@ export default function HistorialDia() {
                         className={`${styles.historialDiaEstado} ${
                           domicilio.estado === "Pagado"
                             ? styles.historialDiaEstadoPagado
-                            : styles.historialDiaEstadoPendiente
+                            : domicilio.estado === "Entregado"
+                              ? styles.historialDiaEstadoEntregado
+                              : domicilio.estado === "Reportado"
+                                ? styles.historialDiaEstadoReportado
+                                : domicilio.estado === "Cancelado"
+                                  ? styles.historialDiaEstadoCancelado
+                                  : styles.historialDiaEstadoPendiente
                         }`}
                       >
                         <span></span>
                         {domicilio.estado || "Sin estado"}
                       </span>
+                    </td>
+
+                    <td>
+                      {domicilio.estado === "Entregado" ? (
+                        <button
+                          type="button"
+                          className={styles.historialDiaAccion}
+                          onClick={() => marcarComoPagado(domicilio)}
+                        >
+                          Marcar pagado
+                        </button>
+                      ) : (
+                        <span className={styles.historialDiaAccionVacia}>
+                          —
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))

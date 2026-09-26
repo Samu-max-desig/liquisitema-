@@ -64,7 +64,7 @@ export default function DomiciliarioDashboard() {
     estado: "",
   });
   const [claveSolucion, setClaveSolucion] = useState("");
-  const [estadoSolucion, setEstadoSolucion] = useState("Pagado");
+  const [metodoPagoSolucion, setMetodoPagoSolucion] = useState("");
   const [modalSolucionReportado, setModalSolucionReportado] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [domicilios, setDomicilios] = useState([]);
@@ -305,9 +305,13 @@ export default function DomiciliarioDashboard() {
     };
   }, [usuario?.id]);
 
-  const guardarDomicilio = async (e) => {
-    e.preventDefault();
-
+  const guardarDomicilio = async (
+    e,
+    estadoForzado = null,
+    metodoPagoForzado = null,
+  ) => {
+    e?.preventDefault();
+    const metodoPago = metodoPagoForzado || formData.metodo_pago;
     if (guardandoDomicilio) return;
 
     setSubmitted(true);
@@ -315,13 +319,12 @@ export default function DomiciliarioDashboard() {
     // ==========================================
     // VALIDACIONES
     // ==========================================
-
     if (
       !formData.cliente.trim() ||
       !formData.direccion.trim() ||
       !formData.telefono.trim() ||
       !formData.valor ||
-      !formData.metodo_pago ||
+      (!estadoForzado && !formData.metodo_pago) ||
       !organizacionSeleccionada
     ) {
       setError(
@@ -329,7 +332,6 @@ export default function DomiciliarioDashboard() {
       );
       return;
     }
-
     if (Number(formData.valor) <= 0) {
       setError("El valor debe ser mayor a 0.");
       return;
@@ -494,12 +496,15 @@ export default function DomiciliarioDashboard() {
             telefono: telefonoCliente,
             direccion: formData.direccion.trim(),
             costo: Number(formData.valor),
-            metodo_pago: formData.metodo_pago,
+            metodo_pago:
+              estadoForzado === "Reportado" ? null : formData.metodo_pago,
             observaciones: formData.observaciones,
 
             // "Otro" = Pendiente
-            // Los demás métodos = Pagado
-            estado: formData.metodo_pago === "Otro" ? "Pendiente" : "Pagado",
+            // Los demás métodos = Entregado
+            estado:
+              estadoForzado ||
+              (formData.metodo_pago === "Otro" ? "Pendiente" : "Entregado"),
 
             domiciliario_id: usuario.id,
 
@@ -529,8 +534,11 @@ export default function DomiciliarioDashboard() {
       await registrarActividadYNotificar({
         usuarioId: usuario.id,
         tipo: "domicilio",
-        accion: "crear",
-        descripcion: `Registró el domicilio de ${formData.cliente}.`,
+        accion: estadoForzado === "Reportado" ? "reportar" : "crear",
+        descripcion:
+          estadoForzado === "Reportado"
+            ? `Reportó el domicilio del cliente ${formData.cliente}. Motivo: ${reporteData.motivo}.`
+            : `Registró el domicilio de ${formData.cliente}.`,
         referenciaId: domicilioCreado.id,
         organizacionId: organizacionSeleccionada,
       });
@@ -538,8 +546,32 @@ export default function DomiciliarioDashboard() {
       // ==========================================
       // CREAR / ACUMULAR PENDIENTE
       // ==========================================
+      if (estadoForzado === "Reportado") {
+        const { error: reporteError } = await supabase.from("reportes").insert([
+          {
+            usuario_id: usuario.id,
+            domicilio_id: domicilioCreado.id,
+            descripcion: `${reporteData.motivo}: ${
+              reporteData.observaciones || ""
+            }`,
+            estado: "Pendiente",
+          },
+        ]);
 
-      if (formData.metodo_pago === "Otro") {
+        if (reporteError) {
+          console.error("Error creando reporte:", reporteError);
+
+          await Swal.fire({
+            icon: "warning",
+            title: "Domicilio guardado",
+            text: "El domicilio se guardó como reportado, pero no se pudo crear el registro del reporte.",
+            confirmButtonColor: "#2563eb",
+          });
+
+          return;
+        }
+      }
+      if (!estadoForzado && formData.metodo_pago === "Otro") {
         const { error: pendienteError } = await supabase.rpc(
           "crear_o_acumular_pendiente",
           {
@@ -879,9 +911,63 @@ export default function DomiciliarioDashboard() {
 
     return true;
   };
+  const abrirReporteNuevo = () => {
+    if (
+      !formData.cliente.trim() ||
+      !formData.direccion.trim() ||
+      !formData.telefono.trim() ||
+      !formData.valor ||
+      !organizacionSeleccionada
+    ) {
+      setSubmitted(true);
+      setError("Completa los datos del domicilio antes de reportarlo.");
+      return;
+    }
 
+    if (Number(formData.valor) <= 0) {
+      setError("El valor debe ser mayor a 0.");
+      return;
+    }
+
+    if (formData.telefono.length !== 10) {
+      setError("El teléfono debe tener 10 dígitos.");
+      return;
+    }
+
+    if (Number(formData.valor) < 1000) {
+      setError("El valor parece inválido.");
+      return;
+    }
+
+    setError("");
+    setDomicilioSeleccionado(null);
+
+    setReporteData({
+      motivo: "",
+      metodo_pago: "",
+      observaciones: "",
+    });
+
+    setModalReporte(true);
+  };
   const confirmarReporte = async () => {
-    if (!domicilioSeleccionado) return;
+    if (!domicilioSeleccionado) {
+      if (!reporteData.motivo) {
+        Swal.fire({
+          icon: "warning",
+          title: "Selecciona un motivo",
+          text: "Debes indicar por qué se reporta el domicilio.",
+          confirmButtonColor: "#2563eb",
+        });
+
+        return;
+      }
+
+      await guardarDomicilio(null, "Reportado");
+
+      setModalReporte(false);
+      return;
+    }
 
     // No permitir reportar nuevamente un domicilio reportado o cancelado
     if (
@@ -1014,6 +1100,7 @@ export default function DomiciliarioDashboard() {
       showConfirmButton: false,
     });
   };
+
   const buscarCliente = async (valor) => {
     const busqueda = valor.trim();
 
@@ -1482,12 +1569,27 @@ export default function DomiciliarioDashboard() {
 
   const solucionarDomicilioReportado = async () => {
     if (!domicilioSeleccionado) return;
+    if (!metodoPagoSolucion) {
+      Swal.fire({
+        icon: "warning",
+        title: "Método de pago requerido",
+        text: "Selecciona el método de pago para solucionar el domicilio.",
+        confirmButtonColor: "#2563eb",
+        customClass: {
+          container: styles.swalSobreModal,
+        },
+      });
 
+      return;
+    }
     if (!claveSolucion.trim()) {
       Swal.fire({
         icon: "warning",
         title: "Clave requerida",
         text: "Ingresa la clave dinámica del administrador.",
+        customClass: {
+          container: styles.swalSobreModal,
+        },
       });
 
       return;
@@ -1512,6 +1614,9 @@ export default function DomiciliarioDashboard() {
         icon: "error",
         title: "Error",
         text: "No se pudo validar la clave dinámica.",
+        customClass: {
+          container: styles.swalSobreModal,
+        },
       });
 
       return;
@@ -1524,6 +1629,9 @@ export default function DomiciliarioDashboard() {
         text:
           data?.mensaje ||
           "La clave es incorrecta, ya fue utilizada o ha expirado.",
+        customClass: {
+          container: styles.swalSobreModal,
+        },
       });
 
       return;
@@ -1535,7 +1643,8 @@ export default function DomiciliarioDashboard() {
       await supabase
         .from("domicilios")
         .update({
-          estado: estadoSolucion,
+          metodo_pago: metodoPagoSolucion,
+          estado: metodoPagoSolucion === "Otro" ? "Pendiente" : "Entregado",
         })
         .eq("id", domicilioSeleccionado.id)
         .select()
@@ -1560,8 +1669,7 @@ export default function DomiciliarioDashboard() {
       usuarioId: usuario.id,
       tipo: "domicilio",
       accion: "solucionar_reporte",
-      descripcion: `Domiciliario ${usuario.nombre} solucionó el domicilio reportado del cliente ${domicilioSeleccionado.cliente}. Su estado cambió de ${estadoAnterior} a ${estadoSolucion}.`,
-      referenciaId: domicilioSeleccionado.id,
+      descripcion: `Domiciliario ${usuario.nombre} solucionó el domicilio reportado del cliente ${domicilioSeleccionado.cliente}. El método de pago quedó como ${metodoPagoSolucion} y el estado cambió de ${estadoAnterior} a ${nuevoEstado}.`,
       organizacionId: organizacionSeleccionada,
     });
 
@@ -1576,12 +1684,12 @@ export default function DomiciliarioDashboard() {
     setDomicilioSeleccionado(null);
     setModalSolucionReportado(false);
     setClaveSolucion("");
-    setEstadoSolucion("Pagado");
+    setMetodoPagoSolucion("");
 
     Swal.fire({
       icon: "success",
       title: "Domicilio solucionado",
-      text: `El domicilio ahora está ${estadoSolucion}.`,
+      text: `El domicilio ahora está ${nuevoEstado}.`,
       timer: 1800,
       showConfirmButton: false,
     });
@@ -2114,9 +2222,19 @@ export default function DomiciliarioDashboard() {
                     }
                   />
                   {error && <p className={styles.lqError}>{error}</p>}
-                  <button type="submit" className={styles.lqSaveButton}>
-                    Guardar Domicilio
-                  </button>
+                  <div className={styles.lqFormActions}>
+                    <button
+                      type="button"
+                      className={styles.lqReportButton}
+                      onClick={abrirReporteNuevo}
+                    >
+                      Reportar Domicilio
+                    </button>
+
+                    <button type="submit" className={styles.lqSaveButton}>
+                      Guardar Domicilio
+                    </button>
+                  </div>
                 </form>
               </div>
 
@@ -2164,13 +2282,13 @@ export default function DomiciliarioDashboard() {
 
                               return;
                             }
-
                             setDomicilioSeleccionado({
                               ...domicilio,
                               reporte_descripcion:
                                 reporte?.descripcion || "Problema reportado",
                             });
 
+                            setMetodoPagoSolucion("");
                             setModalSolucionReportado(true);
                           }}
                           style={{
@@ -2267,6 +2385,7 @@ export default function DomiciliarioDashboard() {
 
                                   setReporteData({
                                     motivo: "",
+                                    metodo_pago: domicilio.metodo_pago || "",
                                     observaciones: "",
                                   });
 
@@ -2705,7 +2824,9 @@ export default function DomiciliarioDashboard() {
 
       {modalSolucionReportado && domicilioSeleccionado && (
         <div className={styles.lqModalOverlay}>
-          <div className={styles.lqModal}>
+          <div
+            className={`${styles.lqModal} ${styles.lqModalSolucionReportado}`}
+          >
             <div className={styles.lqModalHeader}>
               <div>
                 <h2>Solucionar domicilio reportado</h2>
@@ -2718,7 +2839,6 @@ export default function DomiciliarioDashboard() {
                   setModalSolucionReportado(false);
                   setDomicilioSeleccionado(null);
                   setClaveSolucion("");
-                  setEstadoSolucion("Pagado");
                 }}
               >
                 <XMarkIcon />
@@ -2733,13 +2853,13 @@ export default function DomiciliarioDashboard() {
                 </div>
 
                 <div>
-                  <span>ID del domicilio</span>
-                  <strong>#{domicilioSeleccionado.id}</strong>
+                  <span>Dirección</span>
+                  <strong>{domicilioSeleccionado.direccion}</strong>
                 </div>
 
                 <div>
-                  <span>Estado actual</span>
-                  <strong>{domicilioSeleccionado.estado}</strong>
+                  <span>Teléfono</span>
+                  <strong>{domicilioSeleccionado.telefono}</strong>
                 </div>
               </div>
 
@@ -2755,15 +2875,17 @@ export default function DomiciliarioDashboard() {
               </div>
 
               <div className={styles.lqEditField}>
-                <label>Estado del domicilio</label>
+                <label>Método de pago</label>
 
                 <select
-                  value={estadoSolucion}
-                  onChange={(e) => setEstadoSolucion(e.target.value)}
+                  value={metodoPagoSolucion}
+                  onChange={(e) => setMetodoPagoSolucion(e.target.value)}
                 >
-                  <option value="Pagado">Pagado</option>
-
-                  <option value="Pendiente">Pendiente</option>
+                  <option value="">Seleccione método de pago</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Datáfono">Datáfono</option>
+                  <option value="Otro">Otro</option>
                 </select>
               </div>
 
@@ -2786,7 +2908,6 @@ export default function DomiciliarioDashboard() {
                   setModalSolucionReportado(false);
                   setDomicilioSeleccionado(null);
                   setClaveSolucion("");
-                  setEstadoSolucion("Pagado");
                 }}
               >
                 Cancelar
