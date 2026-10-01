@@ -310,6 +310,13 @@ export default function DomiciliarioDashboard() {
     estadoForzado = null,
     metodoPagoForzado = null,
   ) => {
+    const obtenerFechaLocal = (fecha = new Date()) => {
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, "0");
+      const day = String(fecha.getDate()).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    };
     e?.preventDefault();
     const metodoPago = metodoPagoForzado || formData.metodo_pago;
     if (guardandoDomicilio) return;
@@ -499,7 +506,7 @@ export default function DomiciliarioDashboard() {
             metodo_pago:
               estadoForzado === "Reportado" ? null : formData.metodo_pago,
             observaciones: formData.observaciones,
-
+            fecha: obtenerFechaLocal(),
             // "Otro" = Pendiente
             // Los demás métodos = Entregado
             estado:
@@ -963,9 +970,10 @@ export default function DomiciliarioDashboard() {
         return;
       }
 
+      setModalReporte(false);
+
       await guardarDomicilio(null, "Reportado");
 
-      setModalReporte(false);
       return;
     }
 

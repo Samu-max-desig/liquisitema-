@@ -12,6 +12,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.112.3",
+    "exceljs": "^4.4.0",
     "howler": "^2.2.4",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

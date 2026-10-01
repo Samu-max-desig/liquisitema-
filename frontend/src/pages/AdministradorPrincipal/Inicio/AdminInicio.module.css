@@ -1196,3 +1196,401 @@
     gap: 6px;
   }
 }
+/* =========================================
+   INGRESOS - EXPLORADOR
+   ========================================= */
+
+.adminInicioIngresos {
+  min-width: 0;
+}
+
+.adminInicioIngresos > p {
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.adminInicioIngresoItem {
+  min-height: 64px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.adminInicioIngresoItem > span {
+  min-width: 92px;
+}
+
+.adminInicioIngresoItem > strong {
+  font-size: 19px;
+}
+
+.adminInicioIngresoItem > small {
+  min-width: 132px;
+  text-align: right;
+}
+
+/* =========================================
+   MODAL EXPLORADOR DE INGRESOS
+   ========================================= */
+
+.modalReporteExplorador {
+  width: min(1040px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 26px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalReporteEyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.modalReporteExplorador .modalReporteHeader {
+  margin-bottom: 20px;
+}
+
+.modalReporteExplorador .modalReporteHeader h2 {
+  font-size: 23px;
+}
+
+.ingresosExplorador {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 16px;
+  overflow: hidden;
+}
+
+.ingresosPeriodos,
+.ingresosDetalle {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #f8fafc;
+}
+
+.ingresosPeriodos {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ingresosPeriodosHeader {
+  padding: 15px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.ingresosPeriodosHeader strong,
+.ingresosPeriodosHeader span {
+  display: block;
+}
+
+.ingresosPeriodosHeader strong {
+  color: #334155;
+  font-size: 14px;
+}
+
+.ingresosPeriodosHeader span {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.ingresosPeriodosLista {
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.ingresosPeriodo,
+.ingresosPeriodoActivo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 13px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: #334155;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.ingresosPeriodo:hover {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.ingresosPeriodoActivo {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.ingresosPeriodo > span,
+.ingresosPeriodoActivo > span {
+  min-width: 0;
+}
+
+.ingresosPeriodo strong,
+.ingresosPeriodo small,
+.ingresosPeriodoActivo strong,
+.ingresosPeriodoActivo small {
+  display: block;
+}
+
+.ingresosPeriodo strong,
+.ingresosPeriodoActivo strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ingresosPeriodo small,
+.ingresosPeriodoActivo small {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.ingresosPeriodoActivo small {
+  color: #60a5fa;
+}
+
+.ingresosPeriodo > b,
+.ingresosPeriodoActivo > b {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.ingresosSinPeriodos,
+.ingresosSinSeleccion {
+  padding: 24px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.ingresosDetalle {
+  padding: 20px;
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+.ingresosDetalleHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ingresosDetalleHeader > div:first-child > span,
+.ingresosDetalleTotal span {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ingresosDetalleHeader h3 {
+  margin: 4px 0 3px;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+
+.ingresosDetalleHeader p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.ingresosDetalleTotal {
+  flex-shrink: 0;
+  padding: 11px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #eff6ff;
+  text-align: right;
+}
+
+.ingresosDetalleTotal strong {
+  display: block;
+  margin-top: 3px;
+  color: #2563eb;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.ingresosResumenGrid,
+.ingresosMetodos {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ingresosResumenGrid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.ingresosMetodos {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.ingresosResumenGrid > div,
+.ingresosMetodos > div {
+  padding: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.ingresosResumenGrid span,
+.ingresosMetodos span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ingresosResumenGrid strong,
+.ingresosMetodos strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.ingresosMetodos strong {
+  color: #2563eb;
+}
+
+.ingresosDescarga {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ingresosDescarga > div:first-child span,
+.ingresosDescarga > div:first-child small {
+  display: block;
+}
+
+.ingresosDescarga > div:first-child span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ingresosDescarga > div:first-child small {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.ingresosFormatos {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ingresosFormatos .modalReporteOpcion,
+.ingresosFormatos .modalReporteOpcionActiva {
+  min-width: 92px;
+}
+
+.modalReporteExplorador .modalReporteAcciones {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.modalReporteDescargar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 850px) {
+  .modalReporteExplorador {
+    max-height: calc(100vh - 24px);
+    padding: 20px;
+  }
+
+  .ingresosExplorador {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .ingresosPeriodos {
+    max-height: 250px;
+  }
+}
+
+@media (max-width: 600px) {
+  .adminInicioIngresoItem > small {
+    min-width: auto;
+  }
+
+  .modalReporteExplorador {
+    border-radius: 15px;
+    padding: 16px;
+  }
+
+  .ingresosDetalleHeader,
+  .ingresosDescarga {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ingresosDetalleTotal {
+    text-align: left;
+  }
+
+  .ingresosResumenGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .ingresosMetodos {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ingresosFormatos button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 450px) {
+  .ingresosMetodos {
+    grid-template-columns: 1fr;
+  }
+}

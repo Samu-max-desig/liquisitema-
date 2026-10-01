@@ -13,7 +13,6 @@ export default function PreferenciasTrabajo() {
   // HORARIO
   // =====================================================
 
-  const [horarioActivo, setHorarioActivo] = useState(true);
   const [horaInicio, setHoraInicio] = useState("08:00");
   const [horaFin, setHoraFin] = useState("18:00");
 
@@ -54,19 +53,6 @@ export default function PreferenciasTrabajo() {
   // PERÍODO DE ESTADÍSTICAS
   // =====================================================
 
-  const [periodoEstadisticas, setPeriodoEstadisticas] = useState("anual");
-
-  // =====================================================
-  // ESTADÍSTICAS PRIORITARIAS
-  // =====================================================
-
-  const [estadisticas, setEstadisticas] = useState({
-    ventas: true,
-    domicilios: true,
-    pendientes: true,
-    reportes: true,
-  });
-  const [periodoReportes, setPeriodoReportes] = useState("manual");
   // =====================================================
   // OBTENER ORGANIZACIÓN DEL USUARIO ACTUAL
   // =====================================================
@@ -135,19 +121,14 @@ export default function PreferenciasTrabajo() {
           .from("configuraciones_organizacion")
           .select(
             `
-    horario_activo,
     hora_inicio,
     hora_fin,
     dias_trabajo,
-    meses_trabajo,
-    periodo_estadisticas,
-    estadisticas,
-    periodo_reportes
+    meses_trabajo
   `,
           )
           .eq("organizacion_id", orgId)
           .maybeSingle();
-
         if (error) {
           throw error;
         }
@@ -155,8 +136,6 @@ export default function PreferenciasTrabajo() {
         // Si todavía no existe configuración,
         // mantenemos los valores predeterminados.
         if (data) {
-          setHorarioActivo(data.horario_activo ?? true);
-
           setHoraInicio(
             data.hora_inicio ? data.hora_inicio.substring(0, 5) : "08:00",
           );
@@ -175,20 +154,6 @@ export default function PreferenciasTrabajo() {
               ...actual,
               ...data.meses_trabajo,
             }));
-          }
-
-          if (data.periodo_estadisticas) {
-            setPeriodoEstadisticas(data.periodo_estadisticas);
-          }
-
-          if (data.estadisticas) {
-            setEstadisticas((actual) => ({
-              ...actual,
-              ...data.estadisticas,
-            }));
-          }
-          if (data.periodo_reportes) {
-            setPeriodoReportes(data.periodo_reportes);
           }
         }
       } catch (error) {
@@ -225,17 +190,6 @@ export default function PreferenciasTrabajo() {
   };
 
   // =====================================================
-  // CAMBIAR ESTADÍSTICA
-  // =====================================================
-
-  const cambiarEstadistica = (estadistica) => {
-    setEstadisticas((actual) => ({
-      ...actual,
-      [estadistica]: !actual[estadistica],
-    }));
-  };
-
-  // =====================================================
   // GUARDAR
   // =====================================================
 
@@ -246,22 +200,52 @@ export default function PreferenciasTrabajo() {
         return;
       }
 
-      setGuardando(true);
       setMensaje("");
+
+      // =====================================================
+      // VALIDACIONES
+      // =====================================================
+
+      if (!horaInicio || !horaFin) {
+        setMensaje(
+          "Debes seleccionar la hora de inicio y la hora de finalización.",
+        );
+        return;
+      }
+
+      if (horaInicio === horaFin) {
+        setMensaje(
+          "La hora de inicio y la hora de finalización no pueden ser iguales.",
+        );
+        return;
+      }
+
+      const hayDiaActivo = Object.values(diasTrabajo).some(Boolean);
+
+      if (!hayDiaActivo) {
+        setMensaje("Debes seleccionar al menos un día de trabajo.");
+        return;
+      }
+
+      const hayMesActivo = Object.values(mesesTrabajo).some(Boolean);
+
+      if (!hayMesActivo) {
+        setMensaje("Debes seleccionar al menos un mes de trabajo.");
+        return;
+      }
+
+      setGuardando(true);
 
       const { error } = await supabase
         .from("configuraciones_organizacion")
         .upsert(
           {
             organizacion_id: organizacionId,
-            horario_activo: horarioActivo,
+            horario_activo: true,
             hora_inicio: horaInicio,
             hora_fin: horaFin,
             dias_trabajo: diasTrabajo,
             meses_trabajo: mesesTrabajo,
-            periodo_estadisticas: periodoEstadisticas,
-            estadisticas: estadisticas,
-            periodo_reportes: periodoReportes,
           },
           {
             onConflict: "organizacion_id",
@@ -315,283 +299,83 @@ export default function PreferenciasTrabajo() {
           <div>
             <h3>Horario de trabajo</h3>
             <p>
-              Define el horario que se utilizará como referencia para
-              estadísticas y análisis.
+              Define el horario durante el cual los domiciliarios podrán
+              registrar nuevos domicilios.
             </p>
           </div>
+        </div>
 
-          <label className={styles.switch}>
+        <div className={styles.horarios}>
+          <div className={styles.campo}>
+            <label>Hora de inicio</label>
             <input
-              type="checkbox"
-              checked={horarioActivo}
-              onChange={(e) => setHorarioActivo(e.target.checked)}
+              type="time"
+              value={horaInicio}
+              onChange={(e) => setHoraInicio(e.target.value)}
             />
-            <span className={styles.slider}></span>
-          </label>
-        </div>
+          </div>
 
-        {horarioActivo && (
-          <>
-            <div className={styles.horarios}>
-              <div className={styles.campo}>
-                <label>Hora de inicio</label>
-                <input
-                  type="time"
-                  value={horaInicio}
-                  onChange={(e) => setHoraInicio(e.target.value)}
-                />
-              </div>
-
-              <div className={styles.campo}>
-                <label>Hora de finalización</label>
-                <input
-                  type="time"
-                  value={horaFin}
-                  onChange={(e) => setHoraFin(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* DÍAS */}
-
-            <div className={styles.dias}>
-              <label>Días de trabajo</label>
-
-              <div className={styles.listaDias}>
-                {Object.entries(diasTrabajo).map(([dia, activo]) => (
-                  <button
-                    key={dia}
-                    type="button"
-                    className={`${styles.dia} ${
-                      activo ? styles.diaActivo : ""
-                    }`}
-                    onClick={() => cambiarDia(dia)}
-                  >
-                    {dia.charAt(0).toUpperCase() + dia.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* =====================================================
-                MESES
-            ===================================================== */}
-
-            <div className={styles.meses}>
-              <div className={styles.subtituloBloque}>
-                <label>Meses de trabajo</label>
-
-                <span>
-                  Selecciona los meses en los que opera la organización.
-                </span>
-              </div>
-
-              <div className={styles.listaMeses}>
-                {Object.entries(mesesTrabajo).map(([mes, activo]) => (
-                  <button
-                    key={mes}
-                    type="button"
-                    className={`${styles.mes} ${
-                      activo ? styles.mesActivo : ""
-                    }`}
-                    onClick={() => cambiarMes(mes)}
-                  >
-                    {mes.charAt(0).toUpperCase() + mes.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className={styles.info}>
-          <span>ⓘ</span>
-          <p>
-            El horario no bloquea el inicio de sesión. Se utilizará únicamente
-            como referencia para estadísticas, reportes y análisis de actividad.
-          </p>
-        </div>
-      </section>
-
-      {/* =====================================================
-          PERÍODO DE ESTADÍSTICAS
-      ===================================================== */}
-
-      <section className={styles.seccion}>
-        <div className={styles.tituloSeccion}>
-          <div>
-            <h3>Período de estadísticas</h3>
-            <p>
-              Define cómo quieres consultar el comportamiento de la organización
-              durante el año.
-            </p>
+          <div className={styles.campo}>
+            <label>Hora de finalización</label>
+            <input
+              type="time"
+              value={horaFin}
+              onChange={(e) => setHoraFin(e.target.value)}
+            />
           </div>
         </div>
 
-        <div className={styles.periodos}>
-          <button
-            type="button"
-            className={`${styles.periodo} ${
-              periodoEstadisticas === "anual" ? styles.periodoActivo : ""
-            }`}
-            onClick={() => setPeriodoEstadisticas("anual")}
-          >
-            <strong>Anual</strong>
-            <span>Visualiza las estadísticas de todo el año.</span>
-          </button>
+        {/* DÍAS */}
 
-          <button
-            type="button"
-            className={`${styles.periodo} ${
-              periodoEstadisticas === "trimestral" ? styles.periodoActivo : ""
-            }`}
-            onClick={() => setPeriodoEstadisticas("trimestral")}
-          >
-            <strong>Trimestral</strong>
-            <span>Divide el año en períodos de 3 meses.</span>
-          </button>
-        </div>
-      </section>
-      <section className={styles.seccion}>
-        <div className={styles.tituloSeccion}>
-          <div>
-            <h3>Período para descargar reportes</h3>
-            <p>
-              Define con qué frecuencia quieres generar reportes automáticamente
-              al finalizar la jornada.
-            </p>
+        <div className={styles.dias}>
+          <label>Días de trabajo</label>
+
+          <div className={styles.listaDias}>
+            {Object.entries(diasTrabajo).map(([dia, activo]) => (
+              <button
+                key={dia}
+                type="button"
+                className={`${styles.dia} ${activo ? styles.diaActivo : ""}`}
+                onClick={() => cambiarDia(dia)}
+              >
+                {dia.charAt(0).toUpperCase() + dia.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className={styles.periodos}>
-          <button
-            type="button"
-            className={`${styles.periodo} ${
-              periodoReportes === "manual" ? styles.periodoActivo : ""
-            }`}
-            onClick={() => setPeriodoReportes("manual")}
-          >
-            <strong>Solo manual</strong>
-            <span>Descarga los reportes únicamente cuando los solicites.</span>
-          </button>
+        {/* =====================================================
+            MESES
+        ===================================================== */}
 
-          <button
-            type="button"
-            className={`${styles.periodo} ${
-              periodoReportes === "diario" ? styles.periodoActivo : ""
-            }`}
-            onClick={() => setPeriodoReportes("diario")}
-          >
-            <strong>Todos los días</strong>
-            <span>Genera el reporte al finalizar cada jornada.</span>
-          </button>
+        <div className={styles.meses}>
+          <div className={styles.subtituloBloque}>
+            <label>Meses de trabajo</label>
 
-          <button
-            type="button"
-            className={`${styles.periodo} ${
-              periodoReportes === "semanal" ? styles.periodoActivo : ""
-            }`}
-            onClick={() => setPeriodoReportes("semanal")}
-          >
-            <strong>Cada semana</strong>
-            <span>Genera un reporte con la información de la semana.</span>
-          </button>
+            <span>Selecciona los meses en los que opera la organización.</span>
+          </div>
 
-          <button
-            type="button"
-            className={`${styles.periodo} ${
-              periodoReportes === "mensual" ? styles.periodoActivo : ""
-            }`}
-            onClick={() => setPeriodoReportes("mensual")}
-          >
-            <strong>Cada mes</strong>
-            <span>Genera un reporte con la información del mes.</span>
-          </button>
-
-          <button
-            type="button"
-            className={`${styles.periodo} ${
-              periodoReportes === "anual" ? styles.periodoActivo : ""
-            }`}
-            onClick={() => setPeriodoReportes("anual")}
-          >
-            <strong>Cada año</strong>
-            <span>Genera un reporte con la información del año.</span>
-          </button>
+          <div className={styles.listaMeses}>
+            {Object.entries(mesesTrabajo).map(([mes, activo]) => (
+              <button
+                key={mes}
+                type="button"
+                className={`${styles.mes} ${activo ? styles.mesActivo : ""}`}
+                onClick={() => cambiarMes(mes)}
+              >
+                {mes.charAt(0).toUpperCase() + mes.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className={styles.info}>
           <span>ⓘ</span>
           <p>
-            Los reportes automáticos utilizarán la hora de finalización de la
-            jornada como referencia. También puedes descargarlos manualmente en
-            cualquier momento.
+            Estas preferencias definirán posteriormente cuándo los domiciliarios
+            pueden registrar nuevos domicilios. No afectan el inicio de sesión
+            ni el acceso al sistema.
           </p>
-        </div>
-      </section>
-      {/* =====================================================
-          ESTADÍSTICAS PRIORITARIAS
-      ===================================================== */}
-
-      <section className={styles.seccion}>
-        <div className={styles.tituloSeccion}>
-          <div>
-            <h3>Estadísticas prioritarias</h3>
-            <p>
-              Selecciona las estadísticas que quieres priorizar en el panel
-              principal.
-            </p>
-          </div>
-        </div>
-
-        <div className={styles.listaEstadisticas}>
-          <label className={styles.opcion}>
-            <input
-              type="checkbox"
-              checked={estadisticas.ventas}
-              onChange={() => cambiarEstadistica("ventas")}
-            />
-            <span>
-              <strong>Ventas</strong>
-              <small>Ingresos y comportamiento de ventas.</small>
-            </span>
-          </label>
-
-          <label className={styles.opcion}>
-            <input
-              type="checkbox"
-              checked={estadisticas.domicilios}
-              onChange={() => cambiarEstadistica("domicilios")}
-            />
-            <span>
-              <strong>Domicilios</strong>
-              <small>Actividad y cantidad de domicilios.</small>
-            </span>
-          </label>
-
-          <label className={styles.opcion}>
-            <input
-              type="checkbox"
-              checked={estadisticas.pendientes}
-              onChange={() => cambiarEstadistica("pendientes")}
-            />
-            <span>
-              <strong>Pendientes</strong>
-              <small>Control de pagos y cuentas pendientes.</small>
-            </span>
-          </label>
-
-          <label className={styles.opcion}>
-            <input
-              type="checkbox"
-              checked={estadisticas.reportes}
-              onChange={() => cambiarEstadistica("reportes")}
-            />
-            <span>
-              <strong>Reportes</strong>
-              <small>Incidencias y novedades registradas.</small>
-            </span>
-          </label>
         </div>
       </section>
 

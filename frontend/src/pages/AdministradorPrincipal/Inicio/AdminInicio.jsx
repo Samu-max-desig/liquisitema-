@@ -11,7 +11,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { obtenerActividadesPorOrganizacion } from "../../../services/actividadService";
@@ -24,8 +24,12 @@ export default function AdminInicio() {
   // ESTADÍSTICAS PRINCIPALES
   // =========================================================
   const [modalReporteIngresos, setModalReporteIngresos] = useState(false);
-  const [periodoReporte, setPeriodoReporte] = useState("todos");
+  const [periodoReporte, setPeriodoReporte] = useState("hoy");
   const [formatoReporte, setFormatoReporte] = useState("excel");
+  const [historialIngresos, setHistorialIngresos] = useState([]);
+  const [rangoReporteIngresos, setRangoReporteIngresos] = useState(null);
+  const [opcionesReporteIngresos, setOpcionesReporteIngresos] = useState([]);
+  const [cargandoReporteIngresos, setCargandoReporteIngresos] = useState(false);
   const [estadisticas, setEstadisticas] = useState({
     domicilios: 0,
     pendientes: 0,
@@ -70,15 +74,6 @@ export default function AdminInicio() {
       octubre: true,
       noviembre: true,
       diciembre: true,
-    },
-
-    periodoEstadisticas: "anual",
-
-    estadisticas: {
-      ventas: true,
-      domicilios: true,
-      pendientes: true,
-      reportes: true,
     },
   });
 
@@ -1026,6 +1021,8 @@ export default function AdminInicio() {
 
       const estadisticas = data || [];
 
+      setHistorialIngresos(estadisticas);
+
       // =========================================================
       // TOTAL DE UNA JORNADA
       // =========================================================
@@ -1627,214 +1624,724 @@ export default function AdminInicio() {
   // =========================================================
   // RENDER
   // =========================================================
-  const abrirReporteIngresos = (periodo = "todos") => {
-    setPeriodoReporte(periodo);
-    setFormatoReporte("excel");
-    setModalReporteIngresos(true);
+  // =========================================================
+  // EXPLORADOR DE INGRESOS
+  // =========================================================
+
+  const obtenerFechaJornadaActual = () => {
+    const ahora = new Date();
+    const horaInicio = preferencias?.horaInicio || "08:00";
+    const [hora, minuto] = horaInicio.substring(0, 5).split(":").map(Number);
+    const minutosActuales = ahora.getHours() * 60 + ahora.getMinutes();
+    const minutosInicio = hora * 60 + minuto;
+    const fecha = new Date(ahora);
+
+    if (minutosActuales < minutosInicio) {
+      fecha.setDate(fecha.getDate() - 1);
+    }
+
+    fecha.setHours(0, 0, 0, 0);
+    return fecha;
   };
-  const descargarReporteIngresos = async () => {
-    try {
-      // =====================================================
-      // USUARIO AUTENTICADO
-      // =====================================================
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+  const esDiaTrabajoIngreso = (fecha) => {
+    const dias = [
+      "domingo",
+      "lunes",
+      "martes",
+      "miercoles",
+      "jueves",
+      "viernes",
+      "sabado",
+    ];
 
-      if (authError || !user) {
-        console.error("No hay usuario autenticado:", authError);
-        return;
+    return preferencias?.diasTrabajo?.[dias[fecha.getDay()]] !== false;
+  };
+
+  const esMesTrabajoIngreso = (fecha) => {
+    const meses = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre",
+    ];
+
+    return preferencias?.mesesTrabajo?.[meses[fecha.getMonth()]] !== false;
+  };
+
+  const convertirFechaIngreso = (fecha) => {
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, "0");
+    const day = String(fecha.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatearFechaIngreso = (fecha, incluirAnio = true) =>
+    fecha.toLocaleDateString("es-CO", {
+      day: "numeric",
+      month: "short",
+      ...(incluirAnio ? { year: "numeric" } : {}),
+    });
+
+  const obtenerInicioSemanaTrabajo = (fecha) => {
+    const inicio = new Date(fecha);
+    inicio.setHours(0, 0, 0, 0);
+
+    while (!esDiaTrabajoIngreso(inicio)) {
+      inicio.setDate(inicio.getDate() - 1);
+    }
+
+    return inicio;
+  };
+
+  const obtenerOpcionesReporteIngresos = (tipo) => {
+    const fechaJornada = obtenerFechaJornadaActual();
+    const opciones = [];
+
+    if (tipo === "hoy") {
+      let cursor = new Date(fechaJornada);
+      let encontrados = 0;
+
+      while (encontrados < 30) {
+        if (esDiaTrabajoIngreso(cursor) && esMesTrabajoIngreso(cursor)) {
+          const iso = convertirFechaIngreso(cursor);
+
+          opciones.push({
+            id: `dia-${iso}`,
+            tipo,
+            inicio: new Date(cursor),
+            fin: new Date(cursor),
+            titulo: formatearFechaIngreso(cursor),
+            subtitulo:
+              encontrados === 0 ? "Jornada actual" : "Jornada anterior",
+          });
+
+          encontrados += 1;
+        }
+
+        cursor.setDate(cursor.getDate() - 1);
       }
 
-      // =====================================================
-      // ORGANIZACIÓN ACTUAL
-      // =====================================================
+      return opciones;
+    }
 
-      const organizacionId = await obtenerOrganizacionActual(user.id);
+    if (tipo === "semana") {
+      let inicio = obtenerInicioSemanaTrabajo(fechaJornada);
 
-      if (!organizacionId) {
-        console.error("No se encontró la organización.");
-        return;
+      for (let i = 0; i < 12; i += 1) {
+        const fin = new Date(inicio);
+        fin.setDate(fin.getDate() + 6);
+        fin.setHours(0, 0, 0, 0);
+
+        opciones.push({
+          id: `semana-${convertirFechaIngreso(inicio)}`,
+          tipo,
+          inicio: new Date(inicio),
+          fin,
+          titulo: `Semana del ${formatearFechaIngreso(inicio, false)}`,
+          subtitulo: `${formatearFechaIngreso(inicio, false)} – ${formatearFechaIngreso(fin)}`,
+        });
+
+        inicio.setDate(inicio.getDate() - 7);
       }
 
-      /*
-       * Traemos las estadísticas reales.
-       */
-      const { data, error } = await supabase
-        .from("estadisticas_organizacion")
-        .select(
-          `
-        fecha,
-        domicilios_total,
-        domicilios_pagados,
-        domicilios_pendientes,
-        efectivo,
-        transferencia,
-        datafono,
-        otro
-      `,
-        )
-        .eq("organizacion_id", organizacionId)
-        .order("fecha", { ascending: true });
+      return opciones;
+    }
 
-      if (error) throw error;
-
-      let estadisticas = data || [];
-
-      /*
-       * Fecha de la jornada actual.
-       */
-      const ahora = new Date();
-
-      const horaInicio = preferencias?.horaInicio || "08:00";
-
-      const [hora, minuto] = horaInicio.split(":").map(Number);
-
-      const minutosActuales = ahora.getHours() * 60 + ahora.getMinutes();
-
-      const minutosInicio = hora * 60 + minuto;
-
-      const fechaJornada = new Date(ahora);
-
-      if (minutosActuales < minutosInicio) {
-        fechaJornada.setDate(fechaJornada.getDate() - 1);
-      }
-
-      const fechaJornadaISO = [
+    if (tipo === "mes") {
+      let cursor = new Date(
         fechaJornada.getFullYear(),
-        String(fechaJornada.getMonth() + 1).padStart(2, "0"),
-        String(fechaJornada.getDate()).padStart(2, "0"),
-      ].join("-");
+        fechaJornada.getMonth(),
+        1,
+      );
 
-      /*
-       * =========================
-       * FILTRO DEL PERIODO
-       * =========================
-       */
+      for (let i = 0; i < 12; i += 1) {
+        if (esMesTrabajoIngreso(cursor)) {
+          const fin = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+          fin.setHours(0, 0, 0, 0);
 
-      if (periodoReporte !== "todos") {
-        let fechaInicio;
-
-        if (periodoReporte === "hoy") {
-          fechaInicio = new Date(fechaJornada);
+          opciones.push({
+            id: `mes-${cursor.getFullYear()}-${cursor.getMonth()}`,
+            tipo,
+            inicio: new Date(cursor),
+            fin,
+            titulo: cursor.toLocaleDateString("es-CO", {
+              month: "long",
+              year: "numeric",
+            }),
+            subtitulo: i === 0 ? "Mes actual" : "Mes anterior",
+          });
         }
 
-        if (periodoReporte === "semana") {
-          fechaInicio = new Date(fechaJornada);
-
-          const dia = fechaInicio.getDay();
-
-          const diasDesdeLunes = dia === 0 ? 6 : dia - 1;
-
-          fechaInicio.setDate(fechaInicio.getDate() - diasDesdeLunes);
-        }
-
-        if (periodoReporte === "mes") {
-          fechaInicio = new Date(
-            fechaJornada.getFullYear(),
-            fechaJornada.getMonth(),
-            1,
-          );
-        }
-
-        if (periodoReporte === "anio") {
-          fechaInicio = new Date(fechaJornada.getFullYear(), 0, 1);
-        }
-
-        const fechaInicioISO = [
-          fechaInicio.getFullYear(),
-          String(fechaInicio.getMonth() + 1).padStart(2, "0"),
-          String(fechaInicio.getDate()).padStart(2, "0"),
-        ].join("-");
-
-        estadisticas = estadisticas.filter(
-          (fila) =>
-            fila.fecha >= fechaInicioISO && fila.fecha <= fechaJornadaISO,
-        );
+        cursor.setMonth(cursor.getMonth() - 1);
       }
 
-      /*
-       * =========================
-       * PREPARAR DATOS
-       * =========================
-       */
+      return opciones;
+    }
 
-      const filas = estadisticas.map((fila) => {
-        const efectivo = Number(fila.efectivo || 0);
+    if (tipo === "anio") {
+      const anioActual = fechaJornada.getFullYear();
+      const anioMinimoConDatos = historialIngresos.length
+        ? Math.min(
+            ...historialIngresos
+              .filter((fila) => fila.fecha)
+              .map((fila) => Number(String(fila.fecha).substring(0, 4)))
+              .filter(Number.isFinite),
+          )
+        : anioActual;
 
-        const transferencia = Number(fila.transferencia || 0);
+      const anioMinimo = Math.min(anioMinimoConDatos, anioActual);
 
-        const datafono = Number(fila.datafono || 0);
+      for (let anio = anioActual; anio >= anioMinimo; anio -= 1) {
+        const inicio = new Date(anio, 0, 1);
+        const fin = new Date(anio, 11, 31);
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(0, 0, 0, 0);
 
-        const otro = Number(fila.otro || 0);
+        opciones.push({
+          id: `anio-${anio}`,
+          tipo,
+          inicio,
+          fin,
+          titulo: String(anio),
+          subtitulo: anio === anioActual ? "Año actual" : "Año anterior",
+        });
+      }
+    }
 
+    return opciones;
+  };
+
+  const construirFilasRangoIngresos = (rango) => {
+    if (!rango) return [];
+
+    const filas = [];
+    const cursor = new Date(rango.inicio);
+    const fin = new Date(rango.fin);
+    const horaInicio = preferencias?.horaInicio || "08:00";
+    const horaFin = preferencias?.horaFin || "18:00";
+
+    cursor.setHours(0, 0, 0, 0);
+    fin.setHours(0, 0, 0, 0);
+
+    while (cursor <= fin) {
+      const fechaISO = convertirFechaIngreso(cursor);
+      const activa = esDiaTrabajoIngreso(cursor) && esMesTrabajoIngreso(cursor);
+
+      if (activa) {
+        const estadistica = historialIngresos.find(
+          (fila) => String(fila.fecha).substring(0, 10) === fechaISO,
+        );
+
+        const efectivo = Number(estadistica?.efectivo || 0);
+        const transferencia = Number(estadistica?.transferencia || 0);
+        const datafono = Number(estadistica?.datafono || 0);
+        const otro = Number(estadistica?.otro || 0);
         const total = efectivo + transferencia + datafono + otro;
 
-        return {
-          Fecha: fila.fecha,
-          Jornada: `${horaInicio} - ${preferencias?.horaFin || "18:00"}`,
-          Domicilios: Number(fila.domicilios_total || 0),
-          Pagados: Number(fila.domicilios_pagados || 0),
-          Pendientes: Number(fila.domicilios_pendientes || 0),
+        filas.push({
+          Fecha: fechaISO,
+          Jornada: `${horaInicio} - ${horaFin}`,
+          Domicilios: Number(estadistica?.domicilios_total || 0),
+          Pagados: Number(estadistica?.domicilios_pagados || 0),
+          Pendientes: Number(estadistica?.domicilios_pendientes || 0),
           Efectivo: efectivo,
           Transferencia: transferencia,
           Datáfono: datafono,
           Otro: otro,
           Total: total,
-        };
-      });
+        });
+      }
 
-      /*
-       * Si no existen datos.
-       */
-      if (filas.length === 0) {
-        alert("No hay estadísticas disponibles para el periodo seleccionado.");
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return filas;
+  };
+
+  const obtenerResumenRangoIngresos = (rango) => {
+    const filas = construirFilasRangoIngresos(rango);
+
+    return filas.reduce(
+      (acumulado, fila) => ({
+        domicilios: acumulado.domicilios + fila.Domicilios,
+        pagados: acumulado.pagados + fila.Pagados,
+        pendientes: acumulado.pendientes + fila.Pendientes,
+        efectivo: acumulado.efectivo + fila.Efectivo,
+        transferencia: acumulado.transferencia + fila.Transferencia,
+        datafono: acumulado.datafono + fila.Datáfono,
+        otro: acumulado.otro + fila.Otro,
+        total: acumulado.total + fila.Total,
+      }),
+      {
+        domicilios: 0,
+        pagados: 0,
+        pendientes: 0,
+        efectivo: 0,
+        transferencia: 0,
+        datafono: 0,
+        otro: 0,
+        total: 0,
+      },
+    );
+  };
+
+  const abrirReporteIngresos = (tipo = "hoy") => {
+    const opciones = obtenerOpcionesReporteIngresos(tipo);
+    const primeraOpcion = opciones[0] || null;
+
+    setPeriodoReporte(tipo);
+    setFormatoReporte("excel");
+    setOpcionesReporteIngresos(opciones);
+    setRangoReporteIngresos(primeraOpcion);
+    setModalReporteIngresos(true);
+  };
+
+  const seleccionarRangoReporteIngresos = (rango) => {
+    setRangoReporteIngresos(rango);
+  };
+
+  const descargarReporteIngresos = async () => {
+    try {
+      setCargandoReporteIngresos(true);
+
+      if (!rangoReporteIngresos) {
+        alert("Selecciona un período para generar el reporte.");
         return;
       }
 
-      /*
-       * =========================
-       * EXCEL
-       * =========================
-       */
+      const filas = construirFilasRangoIngresos(rangoReporteIngresos);
+      const resumen = obtenerResumenRangoIngresos(rangoReporteIngresos);
+
+      if (filas.length === 0) {
+        alert("No hay jornadas de trabajo configuradas para este período.");
+        return;
+      }
+
+      const nombreArchivo = `${rangoReporteIngresos.tipo}-${convertirFechaIngreso(
+        rangoReporteIngresos.inicio,
+      )}`;
 
       if (formatoReporte === "excel") {
-        const hoja = XLSX.utils.json_to_sheet(filas);
+        // =====================================================
+        // EXCEL PROFESIONAL — SOLO REPORTE DE INGRESOS
+        // =====================================================
 
-        hoja["!cols"] = [
-          { wch: 14 },
-          { wch: 18 },
-          { wch: 12 },
-          { wch: 10 },
-          { wch: 12 },
-          { wch: 15 },
-          { wch: 18 },
-          { wch: 14 },
-          { wch: 12 },
-          { wch: 15 },
+        const workbook = new ExcelJS.Workbook();
+
+        workbook.creator = "Liquisistema";
+        workbook.lastModifiedBy = "Liquisistema";
+        workbook.created = new Date();
+        workbook.modified = new Date();
+
+        const colorPrincipal = "2563EB";
+        const colorOscuro = "172033";
+        const colorSuave = "F3F6FA";
+        const colorBorde = "D9E2F0";
+        const colorVerde = "E8F7EF";
+        const colorAmarillo = "FFF7DB";
+
+        const formatoMonedaExcel = "$#,##0";
+        const formatoFechaExcel = "dd/mm/yyyy";
+
+        // =====================================================
+        // HOJA 1 — RESUMEN
+        // =====================================================
+
+        const hojaResumen = workbook.addWorksheet("Resumen", {
+          views: [{ showGridLines: false }],
+        });
+
+        hojaResumen.columns = [
+          { width: 24 },
+          { width: 30 },
+          { width: 4 },
+          { width: 22 },
+          { width: 22 },
+          { width: 22 },
         ];
 
-        const libro = XLSX.utils.book_new();
+        hojaResumen.mergeCells("A1:F1");
+        const titulo = hojaResumen.getCell("A1");
+        titulo.value = "LIQUISISTEMA";
+        titulo.font = {
+          name: "Calibri",
+          size: 20,
+          bold: true,
+          color: { argb: "FFFFFFFF" },
+        };
+        titulo.alignment = {
+          horizontal: "left",
+          vertical: "middle",
+        };
+        titulo.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: colorOscuro },
+        };
+        hojaResumen.getRow(1).height = 34;
 
-        XLSX.utils.book_append_sheet(libro, hoja, "Ingresos");
+        hojaResumen.mergeCells("A2:F2");
+        const subtitulo = hojaResumen.getCell("A2");
+        subtitulo.value = "REPORTE DE INGRESOS";
+        subtitulo.font = {
+          name: "Calibri",
+          size: 12,
+          bold: true,
+          color: { argb: "FFFFFFFF" },
+        };
+        subtitulo.alignment = {
+          horizontal: "left",
+          vertical: "middle",
+        };
+        subtitulo.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: colorPrincipal },
+        };
+        hojaResumen.getRow(2).height = 24;
 
-        const nombrePeriodo =
-          periodoReporte === "todos" ? "todos-los-dias" : periodoReporte;
+        hojaResumen.getCell("A4").value = "Período";
+        hojaResumen.getCell("B4").value = rangoReporteIngresos.titulo;
 
-        XLSX.writeFile(libro, `reporte-ingresos-${nombrePeriodo}.xlsx`);
+        hojaResumen.getCell("A5").value = "Rango";
+        hojaResumen.getCell("B5").value =
+          `${formatearFechaIngreso(rangoReporteIngresos.inicio)} – ${formatearFechaIngreso(rangoReporteIngresos.fin)}`;
+
+        hojaResumen.getCell("A6").value = "Jornada";
+        hojaResumen.getCell("B6").value =
+          `${preferencias?.horaInicio || "08:00"} - ${preferencias?.horaFin || "18:00"}`;
+
+        ["A4", "A5", "A6"].forEach((direccion) => {
+          const celda = hojaResumen.getCell(direccion);
+          celda.font = { bold: true, color: { argb: colorOscuro } };
+          celda.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: colorSuave },
+          };
+          celda.border = {
+            bottom: { style: "thin", color: { argb: colorBorde } },
+          };
+        });
+
+        ["B4", "B5", "B6"].forEach((direccion) => {
+          const celda = hojaResumen.getCell(direccion);
+          celda.font = { color: { argb: colorOscuro } };
+          celda.border = {
+            bottom: { style: "thin", color: { argb: colorBorde } },
+          };
+        });
+
+        hojaResumen.mergeCells("A8:F8");
+        const tituloResumen = hojaResumen.getCell("A8");
+        tituloResumen.value = "RESUMEN DEL PERÍODO";
+        tituloResumen.font = {
+          bold: true,
+          size: 12,
+          color: { argb: "FFFFFFFF" },
+        };
+        tituloResumen.alignment = {
+          horizontal: "left",
+          vertical: "middle",
+        };
+        tituloResumen.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: colorPrincipal },
+        };
+        hojaResumen.getRow(8).height = 24;
+
+        const indicadores = [
+          ["Domicilios", resumen.domicilios],
+          ["Pagados", resumen.pagados],
+          ["Pendientes", resumen.pendientes],
+          ["Efectivo", resumen.efectivo],
+          ["Transferencia", resumen.transferencia],
+          ["Datáfono", resumen.datafono],
+          ["Otro", resumen.otro],
+          ["TOTAL RECAUDADO", resumen.total],
+        ];
+
+        indicadores.forEach(([etiqueta, valor], indice) => {
+          const fila = 9 + indice;
+          const celdaEtiqueta = hojaResumen.getCell(`A${fila}`);
+          const celdaValor = hojaResumen.getCell(`B${fila}`);
+
+          celdaEtiqueta.value = etiqueta;
+          celdaValor.value = Number(valor || 0);
+
+          celdaEtiqueta.border = {
+            bottom: { style: "thin", color: { argb: colorBorde } },
+          };
+          celdaValor.border = {
+            bottom: { style: "thin", color: { argb: colorBorde } },
+          };
+
+          if (etiqueta === "TOTAL RECAUDADO") {
+            celdaEtiqueta.font = {
+              bold: true,
+              size: 12,
+              color: { argb: "FFFFFFFF" },
+            };
+            celdaValor.font = {
+              bold: true,
+              size: 14,
+              color: { argb: "FFFFFFFF" },
+            };
+
+            celdaEtiqueta.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: colorPrincipal },
+            };
+            celdaValor.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: colorPrincipal },
+            };
+
+            celdaValor.numFmt = formatoMonedaExcel;
+          } else {
+            celdaEtiqueta.font = {
+              bold: etiqueta === "Domicilios" || etiqueta === "Pagados",
+              color: { argb: colorOscuro },
+            };
+
+            celdaValor.font = {
+              bold: true,
+              color: { argb: colorOscuro },
+            };
+
+            if (
+              ["Efectivo", "Transferencia", "Datáfono", "Otro"].includes(
+                etiqueta,
+              )
+            ) {
+              celdaValor.numFmt = formatoMonedaExcel;
+            }
+
+            if (etiqueta === "Pendientes") {
+              celdaEtiqueta.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: colorAmarillo },
+              };
+              celdaValor.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: colorAmarillo },
+              };
+            }
+          }
+        });
+
+        hojaResumen.getCell("D18").value = "INFORMACIÓN DEL REPORTE";
+        hojaResumen.getCell("D18").font = {
+          bold: true,
+          color: { argb: "FFFFFFFF" },
+        };
+        hojaResumen.getCell("D18").fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: colorPrincipal },
+        };
+
+        hojaResumen.mergeCells("D18:F18");
+
+        hojaResumen.getCell("D19").value = "Generado";
+        hojaResumen.getCell("E19").value = new Date();
+        hojaResumen.getCell("E19").numFmt = "dd/mm/yyyy hh:mm";
+
+        hojaResumen.getCell("D20").value = "Tipo";
+        hojaResumen.getCell("E20").value =
+          rangoReporteIngresos.tipo === "hoy"
+            ? "Jornada"
+            : rangoReporteIngresos.tipo === "semana"
+              ? "Semana"
+              : rangoReporteIngresos.tipo === "mes"
+                ? "Mes"
+                : "Año";
+
+        hojaResumen.getCell("D21").value = "Jornadas incluidas";
+        hojaResumen.getCell("E21").value = filas.length;
+
+        hojaResumen.getCell("D22").value = "Moneda";
+        hojaResumen.getCell("E22").value = "COP";
+
+        ["D19", "D20", "D21", "D22"].forEach((direccion) => {
+          hojaResumen.getCell(direccion).font = {
+            bold: true,
+            color: { argb: colorOscuro },
+          };
+        });
+
+        ["E19", "E20", "E21", "E22"].forEach((direccion) => {
+          hojaResumen.getCell(direccion).fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: colorSuave },
+          };
+        });
+
+        hojaResumen.getRow(17).height = 8;
+
+        hojaResumen.mergeCells("A23:F23");
+        const nota = hojaResumen.getCell("A23");
+        nota.value =
+          "Los valores monetarios corresponden únicamente a domicilios registrados como Pagados.";
+        nota.font = {
+          italic: true,
+          size: 10,
+          color: { argb: "64748B" },
+        };
+        nota.alignment = {
+          wrapText: true,
+        };
+
+        // =====================================================
+        // HOJA 2 — DETALLE DIARIO
+        // =====================================================
+
+        const hojaDetalle = workbook.addWorksheet("Detalle diario", {
+          views: [{ showGridLines: false }],
+        });
+
+        hojaDetalle.columns = [
+          { header: "Fecha", key: "Fecha", width: 15 },
+          { header: "Jornada", key: "Jornada", width: 19 },
+          { header: "Domicilios", key: "Domicilios", width: 14 },
+          { header: "Pagados", key: "Pagados", width: 12 },
+          { header: "Pendientes", key: "Pendientes", width: 14 },
+          { header: "Efectivo", key: "Efectivo", width: 17 },
+          { header: "Transferencia", key: "Transferencia", width: 19 },
+          { header: "Datáfono", key: "Datáfono", width: 16 },
+          { header: "Otro", key: "Otro", width: 15 },
+          { header: "Total", key: "Total", width: 18 },
+        ];
+
+        filas.forEach((fila) => {
+          const filaExcel = hojaDetalle.addRow({
+            Fecha: new Date(`${fila.Fecha}T00:00:00`),
+            Jornada: fila.Jornada,
+            Domicilios: fila.Domicilios,
+            Pagados: fila.Pagados,
+            Pendientes: fila.Pendientes,
+            Efectivo: fila.Efectivo,
+            Transferencia: fila.Transferencia,
+            Datáfono: fila.Datáfono,
+            Otro: fila.Otro,
+            Total: fila.Total,
+          });
+
+          filaExcel.getCell("Fecha").numFmt = formatoFechaExcel;
+
+          ["Efectivo", "Transferencia", "Datáfono", "Otro", "Total"].forEach(
+            (columna) => {
+              filaExcel.getCell(columna).numFmt = formatoMonedaExcel;
+            },
+          );
+        });
+
+        const encabezadoDetalle = hojaDetalle.getRow(1);
+
+        encabezadoDetalle.height = 28;
+
+        encabezadoDetalle.eachCell((celda) => {
+          celda.font = {
+            bold: true,
+            color: { argb: "FFFFFFFF" },
+          };
+          celda.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: colorPrincipal },
+          };
+          celda.alignment = {
+            horizontal: "center",
+            vertical: "middle",
+            wrapText: true,
+          };
+          celda.border = {
+            top: { style: "thin", color: { argb: "FFFFFFFF" } },
+            bottom: { style: "thin", color: { argb: "FFFFFFFF" } },
+          };
+        });
+
+        for (let fila = 2; fila <= hojaDetalle.rowCount; fila += 1) {
+          const filaActual = hojaDetalle.getRow(fila);
+
+          filaActual.eachCell((celda) => {
+            celda.border = {
+              bottom: { style: "hair", color: { argb: colorBorde } },
+            };
+            celda.alignment = {
+              vertical: "middle",
+            };
+          });
+
+          if (fila % 2 === 0) {
+            filaActual.eachCell((celda) => {
+              celda.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "F8FAFC" },
+              };
+            });
+          }
+
+          filaActual.getCell("Total").font = {
+            bold: true,
+            color: { argb: colorOscuro },
+          };
+        }
+
+        hojaDetalle.views = [{ state: "frozen", ySplit: 1 }];
+
+        if (filas.length > 0) {
+          hojaDetalle.autoFilter = {
+            from: "A1",
+            to: `J${filas.length + 1}`,
+          };
+          hojaDetalle.autoFilter = {
+            from: "A1",
+            to: `J${filas.length + 1}`,
+          };
+        }
+
+        // =====================================================
+        // DESCARGA EN EL NAVEGADOR
+        // =====================================================
+
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        const blob = new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+
+        const url = window.URL.createObjectURL(blob);
+        const enlace = document.createElement("a");
+
+        enlace.href = url;
+        enlace.download = `reporte-ingresos-${nombreArchivo}.xlsx`;
+
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+
+        window.URL.revokeObjectURL(url);
 
         setModalReporteIngresos(false);
-
         return;
       }
-
-      /*
-       * =========================
-       * PDF
-       * =========================
-       */
 
       if (formatoReporte === "pdf") {
         const doc = new jsPDF({
@@ -1843,26 +2350,244 @@ export default function AdminInicio() {
           format: "a4",
         });
 
+        // =====================================================
+        // CONFIGURACIÓN VISUAL
+        // =====================================================
+
+        const anchoPagina = doc.internal.pageSize.getWidth();
+        const altoPagina = doc.internal.pageSize.getHeight();
+
+        const azulPrincipal = [37, 99, 235];
+        const azulOscuro = [15, 23, 42];
+        const azulSuave = [239, 246, 255];
+        const grisTexto = [71, 85, 105];
+        const grisBorde = [226, 232, 240];
+        const grisFondo = [248, 250, 252];
+        const verde = [22, 163, 74];
+        const amarillo = [245, 158, 11];
+
+        const moneda = (valor) =>
+          `$${Number(valor || 0).toLocaleString("es-CO")}`;
+
+        // =====================================================
+        // ENCABEZADO PRINCIPAL
+        // =====================================================
+
+        doc.setFillColor(...azulOscuro);
+        doc.rect(0, 0, anchoPagina, 17, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
-        doc.text("Reporte de ingresos", 14, 15);
+        doc.text("LIQUISISTEMA", 14, 11);
 
-        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("Sistema de gestión de domicilios", anchoPagina - 14, 10, {
+          align: "right",
+        });
 
-        const nombresPeriodo = {
-          todos: "Todos los días",
-          hoy: "Hoy",
-          semana: "Esta semana",
-          mes: "Este mes",
-          anio: "Este año",
-        };
+        // =====================================================
+        // TÍTULO
+        // =====================================================
 
-        doc.text(`Periodo: ${nombresPeriodo[periodoReporte]}`, 14, 22);
+        doc.setTextColor(...azulOscuro);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(20);
+        doc.text("REPORTE DE INGRESOS", 14, 29);
+
+        doc.setTextColor(grisTexto[0], grisTexto[1], grisTexto[2]);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+
+        doc.text(`Período: ${rangoReporteIngresos.titulo}`, 14, 36);
 
         doc.text(
-          `Jornada: ${horaInicio} - ${preferencias?.horaFin || "18:00"}`,
+          `Rango: ${formatearFechaIngreso(
+            rangoReporteIngresos.inicio,
+          )} - ${formatearFechaIngreso(rangoReporteIngresos.fin)}`,
           14,
-          28,
+          42,
         );
+
+        doc.text(
+          `Jornada: ${preferencias?.horaInicio || "08:00"} - ${
+            preferencias?.horaFin || "18:00"
+          }`,
+          14,
+          48,
+        );
+
+        // =====================================================
+        // INFORMACIÓN DEL REPORTE
+        // =====================================================
+
+        const infoX = anchoPagina - 92;
+        const infoY = 24;
+        const infoW = 78;
+        const infoH = 29;
+
+        doc.setFillColor(...grisFondo);
+        doc.setDrawColor(...grisBorde);
+        doc.roundedRect(infoX, infoY, infoW, infoH, 3, 3, "FD");
+
+        doc.setFillColor(...azulPrincipal);
+        doc.roundedRect(infoX, infoY, infoW, 8, 3, 3, "F");
+
+        // Cubrimos la parte inferior de las esquinas superiores
+        doc.rect(infoX, infoY + 4, infoW, 4, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text("INFORMACIÓN DEL REPORTE", infoX + 4, infoY + 5.5);
+
+        doc.setTextColor(...grisTexto);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("Generado", infoX + 4, infoY + 14);
+
+        doc.text("Tipo", infoX + 4, infoY + 20);
+
+        doc.text("Jornadas", infoX + 4, infoY + 26);
+
+        doc.setFont("helvetica", "normal");
+
+        doc.text(
+          new Date().toLocaleString("es-CO", {
+            dateStyle: "short",
+            timeStyle: "short",
+          }),
+          infoX + 25,
+          infoY + 14,
+        );
+
+        doc.text(
+          rangoReporteIngresos.tipo === "hoy"
+            ? "Jornada"
+            : rangoReporteIngresos.tipo === "semana"
+              ? "Semana"
+              : rangoReporteIngresos.tipo === "mes"
+                ? "Mes"
+                : "Año",
+          infoX + 25,
+          infoY + 20,
+        );
+
+        doc.text(String(filas.length), infoX + 25, infoY + 26);
+
+        // =====================================================
+        // RESUMEN DEL PERÍODO
+        // =====================================================
+
+        const resumenY = 59;
+
+        doc.setFillColor(...azulPrincipal);
+        doc.roundedRect(14, resumenY, anchoPagina - 28, 9, 3, 3, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("RESUMEN DEL PERÍODO", 18, resumenY + 6);
+
+        // =====================================================
+        // TARJETAS DE RESUMEN
+        // =====================================================
+
+        const tarjetaY = resumenY + 13;
+        const separacion = 4;
+        const margen = 14;
+        const anchoDisponible = anchoPagina - margen * 2;
+        const anchoTarjeta = (anchoDisponible - separacion * 3) / 4;
+
+        const tarjetas = [
+          {
+            titulo: "DOMICILIOS",
+            valor: resumen.domicilios,
+            color: azulPrincipal,
+          },
+          {
+            titulo: "PAGADOS",
+            valor: resumen.pagados,
+            color: verde,
+          },
+          {
+            titulo: "PENDIENTES",
+            valor: resumen.pendientes,
+            color: amarillo,
+          },
+          {
+            titulo: "TOTAL RECAUDADO",
+            valor: moneda(resumen.total),
+            color: azulPrincipal,
+          },
+        ];
+
+        tarjetas.forEach((tarjeta, index) => {
+          const x = margen + index * (anchoTarjeta + separacion);
+
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(...grisBorde);
+          doc.roundedRect(x, tarjetaY, anchoTarjeta, 23, 3, 3, "FD");
+
+          doc.setFillColor(...tarjeta.color);
+          doc.roundedRect(x, tarjetaY, 3, 23, 1.5, 1.5, "F");
+
+          doc.setTextColor(...grisTexto);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.text(tarjeta.titulo, x + 7, tarjetaY + 7);
+
+          doc.setTextColor(...azulOscuro);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(index === 3 ? 13 : 15);
+
+          doc.text(String(tarjeta.valor), x + 7, tarjetaY + 17);
+        });
+
+        // =====================================================
+        // MÉTODOS DE PAGO
+        // =====================================================
+
+        const pagosY = tarjetaY + 30;
+
+        doc.setTextColor(...azulOscuro);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("DESGLOSE POR MÉTODO DE PAGO", 14, pagosY);
+
+        const pagos = [
+          ["Efectivo", resumen.efectivo],
+          ["Transferencia", resumen.transferencia],
+          ["Datáfono", resumen.datafono],
+          ["Otro", resumen.otro],
+        ];
+
+        const pagoAncho = (anchoPagina - 28 - separacion * 3) / 4;
+
+        pagos.forEach(([nombre, valor], index) => {
+          const x = 14 + index * (pagoAncho + separacion);
+
+          doc.setFillColor(...grisFondo);
+          doc.setDrawColor(...grisBorde);
+          doc.roundedRect(x, pagosY + 4, pagoAncho, 17, 2.5, 2.5, "FD");
+
+          doc.setTextColor(...grisTexto);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.text(nombre, x + 5, pagosY + 11);
+
+          doc.setTextColor(...azulOscuro);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.text(moneda(valor), x + pagoAncho - 5, pagosY + 11, {
+            align: "right",
+          });
+        });
+
+        // =====================================================
+        // DETALLE DIARIO
+        // =====================================================
 
         const columnas = [
           "Fecha",
@@ -1883,38 +2608,168 @@ export default function AdminInicio() {
           fila.Domicilios,
           fila.Pagados,
           fila.Pendientes,
-          `$${fila.Efectivo.toLocaleString("es-CO")}`,
-          `$${fila.Transferencia.toLocaleString("es-CO")}`,
-          `$${fila.Datáfono.toLocaleString("es-CO")}`,
-          `$${fila.Otro.toLocaleString("es-CO")}`,
-          `$${fila.Total.toLocaleString("es-CO")}`,
+          moneda(fila.Efectivo),
+          moneda(fila.Transferencia),
+          moneda(fila.Datáfono),
+          moneda(fila.Otro),
+          moneda(fila.Total),
         ]);
+
+        const detalleY = pagosY + 29;
+
+        doc.setTextColor(...azulOscuro);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("DETALLE DIARIO", 14, detalleY);
 
         autoTable(doc, {
           head: [columnas],
           body: filasPDF,
-          startY: 34,
-          styles: {
-            fontSize: 7,
+
+          startY: detalleY + 4,
+
+          theme: "grid",
+
+          margin: {
+            left: 14,
+            right: 14,
+            top: 20,
+            bottom: 16,
           },
-          headStyles: {
+
+          styles: {
+            font: "helvetica",
             fontSize: 7,
+            cellPadding: 2.5,
+            textColor: [51, 65, 85],
+            lineColor: grisBorde,
+            lineWidth: 0.2,
+            valign: "middle",
+          },
+
+          headStyles: {
+            fillColor: azulPrincipal,
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+            fontSize: 7,
+            halign: "center",
+            valign: "middle",
+          },
+
+          alternateRowStyles: {
+            fillColor: [248, 250, 252],
+          },
+
+          columnStyles: {
+            0: {
+              cellWidth: 24,
+              halign: "center",
+            },
+            1: {
+              cellWidth: 27,
+              halign: "center",
+            },
+            2: {
+              cellWidth: 21,
+              halign: "center",
+            },
+            3: {
+              cellWidth: 19,
+              halign: "center",
+            },
+            4: {
+              cellWidth: 22,
+              halign: "center",
+            },
+            5: {
+              cellWidth: 27,
+              halign: "right",
+            },
+            6: {
+              cellWidth: 30,
+              halign: "right",
+            },
+            7: {
+              cellWidth: 27,
+              halign: "right",
+            },
+            8: {
+              cellWidth: 24,
+              halign: "right",
+            },
+            9: {
+              cellWidth: 27,
+              halign: "right",
+              fontStyle: "bold",
+            },
+          },
+
+          didDrawPage: (data) => {
+            // Línea superior del pie
+            doc.setDrawColor(...grisBorde);
+            doc.setLineWidth(0.3);
+            doc.line(14, altoPagina - 12, anchoPagina - 14, altoPagina - 12);
+
+            // Pie izquierdo
+            doc.setTextColor(...grisTexto);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+
+            doc.text("Liquisistema · Reporte de ingresos", 14, altoPagina - 7);
+
+            // Número de página
+            doc.text(
+              `Página ${data.pageNumber}`,
+              anchoPagina - 14,
+              altoPagina - 7,
+              { align: "right" },
+            );
           },
         });
 
-        const nombrePeriodo =
-          periodoReporte === "todos" ? "todos-los-dias" : periodoReporte;
+        // =====================================================
+        // NOTA FINAL
+        // =====================================================
 
-        doc.save(`reporte-ingresos-${nombrePeriodo}.pdf`);
+        const ultimaY = doc.lastAutoTable.finalY + 8;
+
+        if (ultimaY < altoPagina - 20) {
+          doc.setFillColor(...azulSuave);
+          doc.setDrawColor(...grisBorde);
+
+          doc.roundedRect(14, ultimaY, anchoPagina - 28, 11, 2.5, 2.5, "FD");
+
+          doc.setTextColor(...grisTexto);
+          doc.setFont("helvetica", "italic");
+          doc.setFontSize(7.5);
+
+          doc.text(
+            "Los valores monetarios corresponden únicamente a domicilios registrados como Pagados.",
+            18,
+            ultimaY + 7,
+          );
+        }
+
+        // =====================================================
+        // GUARDAR
+        // =====================================================
+
+        doc.save(`reporte-ingresos-${nombreArchivo}.pdf`);
 
         setModalReporteIngresos(false);
       }
     } catch (error) {
-      console.error("Error generando reporte:", error);
-
+      console.error("Error generando reporte de ingresos:", error);
       alert("No fue posible generar el reporte.");
+    } finally {
+      setCargandoReporteIngresos(false);
     }
   };
+
+  const resumenRangoActivo = rangoReporteIngresos
+    ? obtenerResumenRangoIngresos(rangoReporteIngresos)
+    : null;
+
   return (
     <div className={styles.adminInicio}>
       {/* =====================================================
@@ -2284,211 +3139,260 @@ export default function AdminInicio() {
         <div className={styles.adminInicioIngresos}>
           <h2>Ingresos</h2>
 
-          <p>Resumen de recaudación real.</p>
+          <p>
+            Resumen de recaudación real. Selecciona un período para explorar sus
+            jornadas.
+          </p>
 
           <div className={styles.adminInicioIngresosLista}>
-            {/* HOY */}
             <button
               type="button"
               className={styles.adminInicioIngresoItem}
               onClick={() => abrirReporteIngresos("hoy")}
             >
               <span>Hoy</span>
-
               <strong>{cargando ? "..." : formatoDinero(ingresos.hoy)}</strong>
-
-              <small>Ver reporte →</small>
+              <small>Explorar fechas →</small>
             </button>
 
-            {/* SEMANA */}
             <button
               type="button"
               className={styles.adminInicioIngresoItem}
               onClick={() => abrirReporteIngresos("semana")}
             >
               <span>Esta semana</span>
-
               <strong>
                 {cargando ? "..." : formatoDinero(ingresos.semana)}
               </strong>
-
-              <small>Ver reporte →</small>
+              <small>Explorar semanas →</small>
             </button>
 
-            {/* MES */}
             <button
               type="button"
               className={styles.adminInicioIngresoItem}
               onClick={() => abrirReporteIngresos("mes")}
             >
               <span>Este mes</span>
-
               <strong>{cargando ? "..." : formatoDinero(ingresos.mes)}</strong>
-
-              <small>Ver reporte →</small>
+              <small>Explorar meses →</small>
             </button>
 
-            {/* AÑO */}
             <button
               type="button"
               className={styles.adminInicioIngresoItem}
               onClick={() => abrirReporteIngresos("anio")}
             >
               <span>Este año</span>
-
               <strong>{cargando ? "..." : formatoDinero(ingresos.anio)}</strong>
-
-              <small>Ver reporte →</small>
+              <small>Explorar años →</small>
             </button>
           </div>
         </div>
       </div>
+
       {modalReporteIngresos && (
         <div
           className={styles.modalReporteOverlay}
           onClick={() => setModalReporteIngresos(false)}
         >
           <div
-            className={styles.modalReporte}
+            className={styles.modalReporteExplorador}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ENCABEZADO */}
             <div className={styles.modalReporteHeader}>
               <div>
-                <h2>Descargar reporte de ingresos</h2>
-
-                <p>Selecciona el periodo y el formato del reporte.</p>
+                <span className={styles.modalReporteEyebrow}>Ingresos</span>
+                <h2>
+                  {periodoReporte === "hoy"
+                    ? "Explorar jornadas"
+                    : periodoReporte === "semana"
+                      ? "Explorar semanas"
+                      : periodoReporte === "mes"
+                        ? "Explorar meses"
+                        : "Explorar años"}
+                </h2>
+                <p>
+                  Consulta períodos anteriores sin cambiar el resumen principal.
+                </p>
               </div>
 
               <button
                 type="button"
                 className={styles.modalReporteCerrar}
                 onClick={() => setModalReporteIngresos(false)}
+                aria-label="Cerrar"
               >
                 ×
               </button>
             </div>
 
-            {/* PERIODO */}
-            <div className={styles.modalReporteSeccion}>
-              <h3>Periodo del reporte</h3>
+            <div className={styles.ingresosExplorador}>
+              <div className={styles.ingresosPeriodos}>
+                <div className={styles.ingresosPeriodosHeader}>
+                  <div>
+                    <strong>
+                      {periodoReporte === "hoy"
+                        ? "Fechas de trabajo"
+                        : periodoReporte === "semana"
+                          ? "Semanas de trabajo"
+                          : periodoReporte === "mes"
+                            ? "Meses de operación"
+                            : "Años disponibles"}
+                    </strong>
+                    <span>Selecciona un período</span>
+                  </div>
+                </div>
 
-              <div className={styles.modalReporteOpciones}>
-                <button
-                  type="button"
-                  className={
-                    periodoReporte === "todos"
-                      ? styles.modalReporteOpcionActiva
-                      : styles.modalReporteOpcion
-                  }
-                  onClick={() => setPeriodoReporte("todos")}
-                >
-                  Todos los días
-                </button>
+                <div className={styles.ingresosPeriodosLista}>
+                  {opcionesReporteIngresos.length === 0 ? (
+                    <div className={styles.ingresosSinPeriodos}>
+                      No hay períodos configurados para mostrar.
+                    </div>
+                  ) : (
+                    opcionesReporteIngresos.map((opcion) => (
+                      <button
+                        key={opcion.id}
+                        type="button"
+                        className={
+                          rangoReporteIngresos?.id === opcion.id
+                            ? styles.ingresosPeriodoActivo
+                            : styles.ingresosPeriodo
+                        }
+                        onClick={() => seleccionarRangoReporteIngresos(opcion)}
+                      >
+                        <span>
+                          <strong>{opcion.titulo}</strong>
+                          <small>{opcion.subtitulo}</small>
+                        </span>
+                        <b>→</b>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
 
-                <button
-                  type="button"
-                  className={
-                    periodoReporte === "semana"
-                      ? styles.modalReporteOpcionActiva
-                      : styles.modalReporteOpcion
-                  }
-                  onClick={() => setPeriodoReporte("semana")}
-                >
-                  Semana
-                </button>
+              <div className={styles.ingresosDetalle}>
+                {rangoReporteIngresos && resumenRangoActivo ? (
+                  <>
+                    <div className={styles.ingresosDetalleHeader}>
+                      <div>
+                        <span>Período seleccionado</span>
+                        <h3>{rangoReporteIngresos.titulo}</h3>
+                        <p>
+                          {formatearFechaIngreso(rangoReporteIngresos.inicio)}
+                          {rangoReporteIngresos.inicio.getTime() !==
+                          rangoReporteIngresos.fin.getTime()
+                            ? ` – ${formatearFechaIngreso(rangoReporteIngresos.fin)}`
+                            : ""}
+                        </p>
+                      </div>
 
-                <button
-                  type="button"
-                  className={
-                    periodoReporte === "mes"
-                      ? styles.modalReporteOpcionActiva
-                      : styles.modalReporteOpcion
-                  }
-                  onClick={() => setPeriodoReporte("mes")}
-                >
-                  Mes
-                </button>
+                      <div className={styles.ingresosDetalleTotal}>
+                        <span>Total recaudado</span>
+                        <strong>
+                          {formatoDinero(resumenRangoActivo.total)}
+                        </strong>
+                      </div>
+                    </div>
 
-                <button
-                  type="button"
-                  className={
-                    periodoReporte === "anio"
-                      ? styles.modalReporteOpcionActiva
-                      : styles.modalReporteOpcion
-                  }
-                  onClick={() => setPeriodoReporte("anio")}
-                >
-                  Año
-                </button>
+                    <div className={styles.ingresosResumenGrid}>
+                      <div>
+                        <span>Domicilios</span>
+                        <strong>{resumenRangoActivo.domicilios}</strong>
+                      </div>
+                      <div>
+                        <span>Pagados</span>
+                        <strong>{resumenRangoActivo.pagados}</strong>
+                      </div>
+                      <div>
+                        <span>Pendientes</span>
+                        <strong>{resumenRangoActivo.pendientes}</strong>
+                      </div>
+                    </div>
+
+                    <div className={styles.ingresosMetodos}>
+                      <div>
+                        <span>Efectivo</span>
+                        <strong>
+                          {formatoDinero(resumenRangoActivo.efectivo)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Transferencia</span>
+                        <strong>
+                          {formatoDinero(resumenRangoActivo.transferencia)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Datáfono</span>
+                        <strong>
+                          {formatoDinero(resumenRangoActivo.datafono)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Otro</span>
+                        <strong>
+                          {formatoDinero(resumenRangoActivo.otro)}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className={styles.ingresosDescarga}>
+                      <div>
+                        <span>Descargar este período</span>
+                        <small>Excel incluye resumen y detalle diario.</small>
+                      </div>
+
+                      <div className={styles.ingresosFormatos}>
+                        <button
+                          type="button"
+                          className={
+                            formatoReporte === "excel"
+                              ? styles.modalReporteOpcionActiva
+                              : styles.modalReporteOpcion
+                          }
+                          onClick={() => setFormatoReporte("excel")}
+                        >
+                          📊 Excel
+                        </button>
+                        <button
+                          type="button"
+                          className={
+                            formatoReporte === "pdf"
+                              ? styles.modalReporteOpcionActiva
+                              : styles.modalReporteOpcion
+                          }
+                          onClick={() => setFormatoReporte("pdf")}
+                        >
+                          📄 PDF
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.ingresosSinSeleccion}>
+                    Selecciona un período para ver sus ingresos.
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* FORMATO */}
-            <div className={styles.modalReporteSeccion}>
-              <h3>Formato</h3>
-
-              <div className={styles.modalReporteOpciones}>
-                <button
-                  type="button"
-                  className={
-                    formatoReporte === "excel"
-                      ? styles.modalReporteOpcionActiva
-                      : styles.modalReporteOpcion
-                  }
-                  onClick={() => setFormatoReporte("excel")}
-                >
-                  📊 Excel
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    formatoReporte === "pdf"
-                      ? styles.modalReporteOpcionActiva
-                      : styles.modalReporteOpcion
-                  }
-                  onClick={() => setFormatoReporte("pdf")}
-                >
-                  📄 PDF
-                </button>
-              </div>
-            </div>
-
-            {/* RESUMEN */}
-            <div className={styles.modalReporteResumen}>
-              <span>Periodo seleccionado</span>
-
-              <strong>
-                {periodoReporte === "todos" && "Todos los días"}
-                {periodoReporte === "semana" && "Esta semana"}
-                {periodoReporte === "mes" && "Este mes"}
-                {periodoReporte === "anio" && "Este año"}
-              </strong>
-
-              <span>Formato</span>
-
-              <strong>
-                {formatoReporte === "excel" ? "Excel (.xlsx)" : "PDF (.pdf)"}
-              </strong>
-            </div>
-
-            {/* BOTONES */}
             <div className={styles.modalReporteAcciones}>
               <button
                 type="button"
                 className={styles.modalReporteCancelar}
                 onClick={() => setModalReporteIngresos(false)}
               >
-                Cancelar
+                Cerrar
               </button>
 
               <button
                 type="button"
                 className={styles.modalReporteDescargar}
                 onClick={descargarReporteIngresos}
+                disabled={cargandoReporteIngresos || !rangoReporteIngresos}
               >
-                Descargar reporte
+                {cargandoReporteIngresos ? "Generando..." : "Descargar reporte"}
               </button>
             </div>
           </div>
