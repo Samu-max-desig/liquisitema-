@@ -17,7 +17,9 @@ export default function Organizaciones() {
   const [usuarioActual, setUsuarioActual] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
-
+  const [organizacionesPrincipales, setOrganizacionesPrincipales] = useState(
+    [],
+  );
   const [mostrarModal, setMostrarModal] = useState(false);
   const [organizacionSeleccionada, setOrganizacionSeleccionada] =
     useState(null);
@@ -81,7 +83,17 @@ export default function Organizaciones() {
       // -------------------------------------------------------
       // 1. ORGANIZACIONES
       // -------------------------------------------------------
+      const { data: principalesData, error: principalesError } = await supabase
+        .from("organizaciones_principales")
+        .select("id, nombre, estado, created_at")
+        .order("created_at", { ascending: false });
 
+      if (principalesError) {
+        throw principalesError;
+      }
+
+      console.log("PRINCIPALES CARGADAS:", principalesData);
+      setOrganizacionesPrincipales(principalesData || []);
       const { data: organizacionesData, error: organizacionesError } =
         await supabase
           .from("organizaciones")
@@ -205,29 +217,12 @@ export default function Organizaciones() {
   // =========================================================
 
   const gruposPrincipales = useMemo(() => {
-    const grupos = new Map();
-
-    organizaciones.forEach((organizacion) => {
-      const principalId =
-        organizacion.organizacion_principal_id || organizacion.id;
-
-      if (!grupos.has(principalId)) {
-        grupos.set(principalId, {
-          id: principalId,
-          organizaciones: [],
-        });
-      }
-
-      grupos.get(principalId).organizaciones.push(organizacion);
-    });
-
-    return Array.from(grupos.values()).sort((a, b) => {
-      const nombreA = a.organizaciones[0]?.nombre || "";
-      const nombreB = b.organizaciones[0]?.nombre || "";
-
-      return nombreA.localeCompare(nombreB);
-    });
-  }, [organizaciones]);
+    return organizacionesPrincipales.map((principal) => ({
+      id: principal.id,
+      nombre: principal.nombre,
+      estado: principal.estado,
+    }));
+  }, [organizacionesPrincipales]);
 
   // =========================================================
   // AGRUPAR ORGANIZACIONES POR PRINCIPAL
@@ -579,11 +574,11 @@ export default function Organizaciones() {
       ) : (
         <section className={styles.listaPrincipal}>
           {gruposOrganizaciones.map((grupo) => {
-            const principal =
-              grupo.organizaciones.find(
-                (organizacion) => organizacion.id === grupo.principalId,
-              ) || grupo.organizaciones[0];
+            const principal = organizacionesPrincipales.find(
+              (item) => item.id === grupo.principalId,
+            );
 
+            const nombrePrincipal = principal?.nombre || "Grupo principal";
             return (
               <article className={styles.grupo} key={grupo.principalId}>
                 <div className={styles.grupoHeader}>
@@ -595,7 +590,7 @@ export default function Organizaciones() {
                         ORGANIZACIÓN PRINCIPAL
                       </span>
 
-                      <h2>{principal?.nombre || "Grupo principal"}</h2>
+                      <h2>{nombrePrincipal}</h2>
 
                       <p>
                         {grupo.organizaciones.length}{" "}

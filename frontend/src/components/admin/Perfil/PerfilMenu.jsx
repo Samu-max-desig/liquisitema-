@@ -185,10 +185,35 @@ export default function PerfilMenu() {
         console.log("✅ Organización encontrada:", organizacionEncontrada);
 
         // ==========================================
-        // 9. GUARDAR SOLO EL OBJETO
+        // 9. OBTENER ORGANIZACIÓN PRINCIPAL
         // ==========================================
 
-        setOrganizacion(organizacionEncontrada);
+        if (organizacionEncontrada.organizacion_principal_id) {
+          const { data: principalDB, error: principalError } = await supabase
+            .from("organizaciones_principales")
+            .select("id, nombre")
+            .eq("id", organizacionEncontrada.organizacion_principal_id)
+            .single();
+
+          if (principalError) {
+            console.error(
+              "❌ Error cargando organización principal:",
+              JSON.stringify(principalError, null, 2),
+            );
+
+            setOrganizacion(organizacionEncontrada);
+            return;
+          }
+
+          console.log("🏢 Organización principal:", principalDB);
+
+          setOrganizacion({
+            ...organizacionEncontrada,
+            nombre: principalDB.nombre,
+          });
+        } else {
+          setOrganizacion(organizacionEncontrada);
+        }
       } catch (error) {
         console.error("❌ Error cargando perfil:", error);
       }

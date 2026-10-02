@@ -17,6 +17,22 @@ SUPABASE_FUNCTION_URL = (
     "/functions/v1/instalar-organizacion"
 )
 
+# El token NO se guarda en el código.
+# Se puede establecer como variable de entorno:
+# LIQUISISTEMA_INSTALLER_TOKEN
+INSTALLER_TOKEN_ENV = "LIQUISISTEMA_INSTALLER_TOKEN"
+
+# Configuración persistente del instalador.
+# Se guarda en AppData del usuario para que funcione también dentro del EXE.
+APP_DATA_DIR = os.path.join(
+    os.environ.get("APPDATA", os.path.expanduser("~")),
+    "Liquisistema"
+)
+INSTALLER_CONFIG_FILE = os.path.join(
+    APP_DATA_DIR,
+    "installer_config.json"
+)
+
 # Colores Liquisistema
 COLOR_PRINCIPAL = "#2563EB"
 COLOR_PRINCIPAL_HOVER = "#1D4ED8"
@@ -29,6 +45,9 @@ COLOR_SECUNDARIO = "#64748B"
 COLOR_BORDE = "#D9E2EC"
 COLOR_EXITO = "#16A34A"
 COLOR_ERROR = "#DC2626"
+COLOR_WARNING = "#D97706"
+COLOR_SUAVE = "#F8FAFC"
+COLOR_AZUL_SUAVE = "#EFF6FF"
 
 
 # =========================================================
@@ -36,10 +55,7 @@ COLOR_ERROR = "#DC2626"
 # =========================================================
 
 def ruta_recurso(nombre):
-    """
-    Funciona tanto ejecutando Python como dentro del EXE.
-    """
-
+    """Funciona tanto ejecutando Python como dentro del EXE."""
     if getattr(sys, "frozen", False):
         base_path = sys._MEIPASS
     else:
@@ -49,7 +65,7 @@ def ruta_recurso(nombre):
 
 
 # =========================================================
-# CONFIGURACIÓN DE APARIENCIA
+# APARIENCIA
 # =========================================================
 
 ctk.set_appearance_mode("light")
@@ -66,45 +82,57 @@ class InstaladorLiquisistema(ctk.CTk):
         super().__init__()
 
         self.title("Liquisistema — Instalador")
-        self.geometry("1100x720")
-        self.minsize(950, 650)
-
+        self.geometry("1250x760")
+        self.minsize(1050, 680)
         self.configure(fg_color=COLOR_FONDO)
 
-        self.paso_actual = 1
+        # Estado general
+        self.modo = None
+        self.paso_actual = 0
         self.instalando = False
+        self.organizacion_seleccionada = None
+        self.organizaciones = []
+        self.tarjetas_admin = []
+
+        # Token:
+        # 1. Variable de entorno, si existe.
+        # 2. Token guardado localmente en AppData.
+        # Nunca se guarda dentro del código ni del EXE.
+        token_entorno = os.environ.get(
+            INSTALLER_TOKEN_ENV,
+            ""
+        ).strip()
+
+        self.token = (
+            token_entorno
+            or self.cargar_token_guardado()
+        )
+
+        # Si vino por variable de entorno, también lo dejamos persistido
+        # para que el EXE pueda seguir funcionando después.
+        if token_entorno:
+            self.guardar_token_local_silencioso(token_entorno)
 
         self.crear_variables()
         self.crear_interfaz()
+        self.mostrar_inicio()
 
-        self.mostrar_paso(1)
-
+        # Al abrir el instalador:
+        # - recupera el token guardado;
+        # - consulta nuevamente las organizaciones en Supabase.
+        # La lista no depende de la memoria de una sesión anterior.
+        self.after(250, self.cargar_organizaciones)
 
     # =====================================================
     # VARIABLES
     # =====================================================
 
     def crear_variables(self):
+        # Organización principal
+        self.nombre_principal = ctk.StringVar()
 
-        # Seguridad
-        self.token = ctk.StringVar()
-
-        # Organización
-        self.nombre_organizacion = ctk.StringVar()
-        self.nit = ctk.StringVar()
-        self.telefono_organizacion = ctk.StringVar()
-        self.correo_organizacion = ctk.StringVar()
-        self.direccion_organizacion = ctk.StringVar()
-
-        # Administrador
-        self.nombre_admin = ctk.StringVar()
-        self.documento_admin = ctk.StringVar()
-        self.telefono_admin = ctk.StringVar()
-        self.direccion_admin = ctk.StringVar()
-        self.correo_admin = ctk.StringVar()
-        self.password_admin = ctk.StringVar()
-        self.confirmar_password = ctk.StringVar()
-
+        # Buscar organización
+        self.busqueda_organizacion = ctk.StringVar()
 
     # =====================================================
     # INTERFAZ PRINCIPAL
@@ -118,25 +146,15 @@ class InstaladorLiquisistema(ctk.CTk):
 
         self.header = ctk.CTkFrame(
             self,
-            height=82,
+            height=84,
             fg_color=COLOR_CARD,
             corner_radius=0
         )
-
-        self.header.pack(
-            fill="x",
-            side="top"
-        )
-
+        self.header.pack(fill="x", side="top")
         self.header.pack_propagate(False)
 
-        # Logo
         try:
-
-            logo = Image.open(
-                ruta_recurso("logo-liquisistema.png")
-            )
-
+            logo = Image.open(ruta_recurso("logo-liquisistema.png"))
             logo.thumbnail((55, 55))
 
             self.logo_img = ctk.CTkImage(
@@ -149,47 +167,53 @@ class InstaladorLiquisistema(ctk.CTk):
                 self.header,
                 image=self.logo_img,
                 text=""
-            ).pack(
-                side="left",
-                padx=(35, 12)
-            )
+            ).pack(side="left", padx=(32, 12))
 
         except Exception:
-
             pass
 
-
-        # Nombre
         titulo_frame = ctk.CTkFrame(
             self.header,
             fg_color="transparent"
         )
-
-        titulo_frame.pack(
-            side="left"
-        )
+        titulo_frame.pack(side="left")
 
         ctk.CTkLabel(
             titulo_frame,
             text="Liquisistema",
-            font=ctk.CTkFont(
-                size=25,
-                weight="bold"
-            ),
+            font=ctk.CTkFont(size=25, weight="bold"),
             text_color=COLOR_TEXTO
-        ).pack(
-            anchor="w"
-        )
+        ).pack(anchor="w")
 
         ctk.CTkLabel(
             titulo_frame,
             text="Instalador del sistema",
             font=ctk.CTkFont(size=13),
             text_color=COLOR_SECUNDARIO
-        ).pack(
-            anchor="w"
-        )
+        ).pack(anchor="w")
 
+        # Indicador de seguridad
+        self.estado_token_label = ctk.CTkLabel(
+            self.header,
+            text="🔐 Token no configurado",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLOR_WARNING
+        )
+        self.estado_token_label.pack(side="right", padx=(10, 18))
+
+        ctk.CTkButton(
+            self.header,
+            text="Token",
+            width=90,
+            height=34,
+            corner_radius=9,
+            fg_color=COLOR_SUAVE,
+            hover_color="#E2E8F0",
+            text_color=COLOR_TEXTO,
+            border_width=1,
+            border_color=COLOR_BORDE,
+            command=self.abrir_token
+        ).pack(side="right", padx=(10, 0))
 
         # -------------------------------------------------
         # CONTENEDOR
@@ -199,14 +223,12 @@ class InstaladorLiquisistema(ctk.CTk):
             self,
             fg_color="transparent"
         )
-
         self.contenedor.pack(
             fill="both",
             expand=True,
-            padx=30,
-            pady=(25, 20)
+            padx=28,
+            pady=(24, 22)
         )
-
 
         # -------------------------------------------------
         # SIDEBAR
@@ -214,66 +236,105 @@ class InstaladorLiquisistema(ctk.CTk):
 
         self.sidebar = ctk.CTkFrame(
             self.contenedor,
-            width=230,
+            width=280,
             fg_color=COLOR_CARD,
             corner_radius=18,
             border_width=1,
             border_color=COLOR_BORDE
         )
-
         self.sidebar.pack(
             side="left",
             fill="y",
             padx=(0, 20)
         )
-
         self.sidebar.pack_propagate(False)
 
+        # Botón crear
+        ctk.CTkButton(
+            self.sidebar,
+            text="＋  CREAR ORGANIZACIÓN NUEVA",
+            height=46,
+            corner_radius=10,
+            fg_color=COLOR_PRINCIPAL,
+            hover_color=COLOR_PRINCIPAL_HOVER,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            command=self.iniciar_nueva_organizacion
+        ).pack(
+            fill="x",
+            padx=16,
+            pady=(18, 18)
+        )
 
         ctk.CTkLabel(
             self.sidebar,
-            text="Nueva instalación",
-            font=ctk.CTkFont(
-                size=19,
-                weight="bold"
-            ),
+            text="Organizaciones principales",
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color=COLOR_TEXTO
         ).pack(
             anchor="w",
-            padx=22,
-            pady=(25, 5)
+            padx=18,
+            pady=(0, 3)
         )
 
         ctk.CTkLabel(
             self.sidebar,
-            text="Configura una organización\nnueva en Liquisistema.",
+            text="Selecciona una organización para administrarla.",
+            font=ctk.CTkFont(size=11),
+            text_color=COLOR_SECUNDARIO,
             justify="left",
-            font=ctk.CTkFont(size=13),
-            text_color=COLOR_SECUNDARIO
+            wraplength=235
         ).pack(
             anchor="w",
-            padx=22
+            padx=18,
+            pady=(0, 12)
         )
 
-
-        self.paso1_label = self.crear_paso_sidebar(
-            1,
-            "Organización",
-            "Datos de la empresa"
+        # Buscador
+        buscador_frame = ctk.CTkFrame(
+            self.sidebar,
+            fg_color=COLOR_SUAVE,
+            corner_radius=9,
+            border_width=1,
+            border_color=COLOR_BORDE
+        )
+        buscador_frame.pack(
+            fill="x",
+            padx=16,
+            pady=(0, 12)
         )
 
-        self.paso2_label = self.crear_paso_sidebar(
-            2,
-            "Administrador",
-            "Credenciales principales"
+        self.entry_busqueda = ctk.CTkEntry(
+            buscador_frame,
+            textvariable=self.busqueda_organizacion,
+            placeholder_text="Buscar organización...",
+            height=38,
+            border_width=0,
+            fg_color="transparent",
+            text_color=COLOR_TEXTO
+        )
+        self.entry_busqueda.pack(
+            fill="x",
+            padx=8,
+            pady=2
+        )
+        self.busqueda_organizacion.trace_add(
+            "write",
+            lambda *_: self.renderizar_organizaciones()
         )
 
-        self.paso3_label = self.crear_paso_sidebar(
-            3,
-            "Finalizar",
-            "Crear instalación"
+        # Lista desplazable
+        self.lista_organizaciones = ctk.CTkScrollableFrame(
+            self.sidebar,
+            fg_color="transparent",
+            scrollbar_button_color="#CBD5E1",
+            scrollbar_button_hover_color="#94A3B8"
         )
-
+        self.lista_organizaciones.pack(
+            fill="both",
+            expand=True,
+            padx=8,
+            pady=(0, 10)
+        )
 
         # -------------------------------------------------
         # ZONA DERECHA
@@ -283,17 +344,11 @@ class InstaladorLiquisistema(ctk.CTk):
             self.contenedor,
             fg_color="transparent"
         )
-
         self.zona_derecha.pack(
             side="left",
             fill="both",
             expand=True
         )
-
-
-        # -------------------------------------------------
-        # CONTENIDO DESPLAZABLE
-        # -------------------------------------------------
 
         self.contenido = ctk.CTkScrollableFrame(
             self.zona_derecha,
@@ -302,31 +357,23 @@ class InstaladorLiquisistema(ctk.CTk):
             border_width=1,
             border_color=COLOR_BORDE
         )
-
         self.contenido.pack(
             fill="both",
             expand=True
         )
 
-
-        # -------------------------------------------------
-        # BOTONES FIJOS
-        # -------------------------------------------------
-
+        # Footer
         self.footer = ctk.CTkFrame(
             self.zona_derecha,
-            height=72,
+            height=70,
             fg_color=COLOR_FONDO
         )
-
         self.footer.pack(
             fill="x",
             side="bottom",
             pady=(12, 0)
         )
-
         self.footer.pack_propagate(False)
-
 
         self.boton_atras = ctk.CTkButton(
             self.footer,
@@ -340,215 +387,197 @@ class InstaladorLiquisistema(ctk.CTk):
             border_color=COLOR_BORDE,
             command=self.ir_atras
         )
-
-        self.boton_atras.pack(
-            side="left"
-        )
-
+        self.boton_atras.pack(side="left")
 
         self.boton_siguiente = ctk.CTkButton(
             self.footer,
-            text="Siguiente →",
-            width=150,
+            text="",
+            width=175,
             height=42,
             corner_radius=10,
             fg_color=COLOR_PRINCIPAL,
             hover_color=COLOR_PRINCIPAL_HOVER,
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
-            ),
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self.ir_siguiente
         )
+        self.boton_siguiente.pack(side="right")
 
-        self.boton_siguiente.pack(
-            side="right"
-        )
-
+        self.actualizar_estado_token()
 
     # =====================================================
-    # SIDEBAR
+    # TOKEN
     # =====================================================
 
-    def crear_paso_sidebar(self, numero, titulo, descripcion):
-
-        frame = ctk.CTkFrame(
-            self.sidebar,
-            fg_color="transparent"
-        )
-
-        frame.pack(
-            fill="x",
-            padx=15,
-            pady=(25, 0)
-        )
-
-        circulo = ctk.CTkLabel(
-            frame,
-            text=str(numero),
-            width=34,
-            height=34,
-            corner_radius=17,
-            fg_color="#E2E8F0",
-            text_color=COLOR_SECUNDARIO,
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
+    def guardar_token_local_silencioso(self, token):
+        """Guarda el token sin mostrar ventanas durante el arranque."""
+        try:
+            os.makedirs(
+                APP_DATA_DIR,
+                exist_ok=True
             )
-        )
 
-        circulo.pack(
-            side="left",
-            padx=(5, 12)
-        )
+            with open(
+                INSTALLER_CONFIG_FILE,
+                "w",
+                encoding="utf-8"
+            ) as archivo:
+                json.dump(
+                    {"installer_token": token},
+                    archivo,
+                    ensure_ascii=False,
+                    indent=2
+                )
 
-        textos = ctk.CTkFrame(
-            frame,
-            fg_color="transparent"
-        )
+        except Exception:
+            pass
 
-        textos.pack(
-            side="left"
-        )
+    def cargar_token_guardado(self):
+        """Carga el token guardado en AppData del usuario."""
+        try:
+            if not os.path.exists(INSTALLER_CONFIG_FILE):
+                return ""
+
+            with open(
+                INSTALLER_CONFIG_FILE,
+                "r",
+                encoding="utf-8"
+            ) as archivo:
+                configuracion = json.load(archivo)
+
+            return str(
+                configuracion.get("installer_token", "")
+            ).strip()
+
+        except Exception:
+            # Si el archivo está dañado o no se puede leer,
+            # simplemente se solicita nuevamente el token.
+            return ""
+
+    def guardar_token_local(self, token):
+        """Guarda el token fuera del EXE, en AppData del usuario."""
+        try:
+            os.makedirs(
+                APP_DATA_DIR,
+                exist_ok=True
+            )
+
+            with open(
+                INSTALLER_CONFIG_FILE,
+                "w",
+                encoding="utf-8"
+            ) as archivo:
+                json.dump(
+                    {"installer_token": token},
+                    archivo,
+                    ensure_ascii=False,
+                    indent=2
+                )
+
+            return True
+
+        except Exception as error:
+            self.mostrar_error(
+                "No se pudo guardar el token localmente.\n\n"
+                f"{error}"
+            )
+            return False
+
+    def actualizar_estado_token(self):
+        if self.token:
+            self.estado_token_label.configure(
+                text="🔐 Token configurado",
+                text_color=COLOR_EXITO
+            )
+        else:
+            self.estado_token_label.configure(
+                text="🔐 Token no configurado",
+                text_color=COLOR_WARNING
+            )
+
+    def abrir_token(self):
+        ventana = ctk.CTkToplevel(self)
+        ventana.title("Token de instalación")
+        ventana.geometry("520x270")
+        ventana.resizable(False, False)
+        ventana.transient(self)
+        ventana.grab_set()
 
         ctk.CTkLabel(
-            textos,
-            text=titulo,
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
-            ),
+            ventana,
+            text="🔐 Token de instalación",
+            font=ctk.CTkFont(size=20, weight="bold"),
             text_color=COLOR_TEXTO
-        ).pack(
-            anchor="w"
-        )
+        ).pack(pady=(28, 5))
 
         ctk.CTkLabel(
-            textos,
-            text=descripcion,
-            font=ctk.CTkFont(size=11),
-            text_color=COLOR_SECUNDARIO
-        ).pack(
-            anchor="w"
+            ventana,
+            text=(
+                "El token autoriza las operaciones administrativas del instalador.\n"
+                "Se guarda localmente en el equipo y no se incluye en el EXE."
+            ),
+            font=ctk.CTkFont(size=12),
+            text_color=COLOR_SECUNDARIO,
+            justify="center"
+        ).pack(pady=(0, 18))
+
+        variable = ctk.StringVar(value=self.token)
+
+        entrada = ctk.CTkEntry(
+            ventana,
+            textvariable=variable,
+            height=42,
+            width=420,
+            show="●",
+            placeholder_text="Token privado"
         )
+        entrada.pack()
 
-        return circulo
+        def guardar():
+            valor = variable.get().strip()
+            if not valor:
+                self.mostrar_error(
+                    "Debes ingresar un token de instalación.",
+                    parent=ventana
+                )
+                return
 
+            # Guardar primero para que sobreviva al cierre del instalador.
+            if not self.guardar_token_local(valor):
+                return
+
+            self.token = valor
+            self.actualizar_estado_token()
+            ventana.destroy()
+
+            # Con el token ya configurado, recargamos las organizaciones
+            # directamente desde Supabase.
+            self.cargar_organizaciones()
+
+        ctk.CTkButton(
+            ventana,
+            text="Guardar token",
+            width=150,
+            height=40,
+            command=guardar
+        ).pack(pady=20)
 
     # =====================================================
-    # LIMPIAR CONTENIDO
+    # UTILIDADES DE CONTENIDO
     # =====================================================
 
     def limpiar_contenido(self):
-
         for widget in self.contenido.winfo_children():
             widget.destroy()
 
-
-    # =====================================================
-    # MOSTRAR PASO
-    # =====================================================
-
-    def mostrar_paso(self, paso):
-
-        self.paso_actual = paso
-
-        self.limpiar_contenido()
-
-        # Actualizar sidebar
-        circulos = [
-            self.paso1_label,
-            self.paso2_label,
-            self.paso3_label
-        ]
-
-        for i, circulo in enumerate(circulos, start=1):
-
-            if i == paso:
-
-                circulo.configure(
-                    fg_color=COLOR_PRINCIPAL,
-                    text_color="white"
-                )
-
-            elif i < paso:
-
-                circulo.configure(
-                    fg_color=COLOR_EXITO,
-                    text_color="white"
-                )
-
-            else:
-
-                circulo.configure(
-                    fg_color="#E2E8F0",
-                    text_color=COLOR_SECUNDARIO
-                )
-
-
-        if paso == 1:
-            self.mostrar_organizacion()
-
-        elif paso == 2:
-            self.mostrar_administrador()
-
-        elif paso == 3:
-            self.mostrar_resumen()
-
-
-        self.contenido._parent_canvas.yview_moveto(0)
-
-
-        # Botones
-
-        if paso == 1:
-
-            self.boton_atras.configure(
-                state="disabled"
-            )
-
-            self.boton_siguiente.configure(
-                text="Siguiente →"
-            )
-
-        elif paso == 2:
-
-            self.boton_atras.configure(
-                state="normal"
-            )
-
-            self.boton_siguiente.configure(
-                text="Revisar instalación →"
-            )
-
-        else:
-
-            self.boton_atras.configure(
-                state="normal"
-            )
-
-            self.boton_siguiente.configure(
-                text="🚀 Crear organización"
-            )
-
-
-    # =====================================================
-    # TITULO DE SECCIÓN
-    # =====================================================
-
     def titulo_seccion(self, titulo, descripcion):
-
         ctk.CTkLabel(
             self.contenido,
             text=titulo,
-            font=ctk.CTkFont(
-                size=28,
-                weight="bold"
-            ),
+            font=ctk.CTkFont(size=27, weight="bold"),
             text_color=COLOR_TEXTO
         ).pack(
             anchor="w",
-            padx=30,
+            padx=32,
             pady=(30, 5)
         )
 
@@ -556,43 +585,31 @@ class InstaladorLiquisistema(ctk.CTk):
             self.contenido,
             text=descripcion,
             font=ctk.CTkFont(size=14),
-            text_color=COLOR_SECUNDARIO
+            text_color=COLOR_SECUNDARIO,
+            justify="left"
         ).pack(
             anchor="w",
-            padx=30,
+            padx=32,
             pady=(0, 25)
         )
 
-
-    # =====================================================
-    # CAMPO
-    # =====================================================
-
-    def campo(self, texto, variable, obligatorio=False, password=False):
-
+    def campo(self, parent, texto, variable, obligatorio=False, password=False,
+              placeholder_text=""):
         frame = ctk.CTkFrame(
-            self.contenido,
+            parent,
             fg_color="transparent"
         )
-
         frame.pack(
             fill="x",
-            padx=30,
-            pady=(0, 17)
+            pady=(0, 15)
         )
 
-        texto_label = texto
-
-        if obligatorio:
-            texto_label += " *"
+        texto_label = texto + (" *" if obligatorio else "")
 
         ctk.CTkLabel(
             frame,
             text=texto_label,
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLOR_TEXTO
         ).pack(
             anchor="w",
@@ -602,311 +619,1176 @@ class InstaladorLiquisistema(ctk.CTk):
         entrada = ctk.CTkEntry(
             frame,
             textvariable=variable,
-            height=44,
+            height=42,
             corner_radius=9,
             border_width=1,
             border_color=COLOR_BORDE,
             fg_color="#FFFFFF",
             text_color=COLOR_TEXTO,
-            show="●" if password else ""
+            show="●" if password else "",
+            placeholder_text=placeholder_text
         )
-
-        entrada.pack(
-            fill="x"
-        )
+        entrada.pack(fill="x")
 
         return entrada
 
-
-    # =====================================================
-    # PASO 1 - ORGANIZACIÓN
-    # =====================================================
-
-    def mostrar_organizacion(self):
-
-        self.titulo_seccion(
-            "Crear organización",
-            "Ingresa los datos básicos de la organización."
+    def tarjeta(self, parent, titulo, subtitulo=None):
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=COLOR_SUAVE,
+            corner_radius=13,
+            border_width=1,
+            border_color=COLOR_BORDE
         )
-
-
-        # Token
-
-        token_frame = ctk.CTkFrame(
-            self.contenido,
-            fg_color="#EFF6FF",
-            corner_radius=12
-        )
-
-        token_frame.pack(
+        card.pack(
             fill="x",
-            padx=30,
-            pady=(0, 25)
-        )
-
-        ctk.CTkLabel(
-            token_frame,
-            text="🔐 Token de instalación",
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
-            ),
-            text_color=COLOR_PRINCIPAL
-        ).pack(
-            anchor="w",
-            padx=18,
-            pady=(15, 3)
-        )
-
-        ctk.CTkLabel(
-            token_frame,
-            text="Token autorizado para crear nuevas organizaciones.",
-            font=ctk.CTkFont(size=12),
-            text_color=COLOR_SECUNDARIO
-        ).pack(
-            anchor="w",
-            padx=18,
-            pady=(0, 8)
-        )
-
-        ctk.CTkEntry(
-            token_frame,
-            textvariable=self.token,
-            height=42,
-            show="●",
-            corner_radius=8,
-            border_color="#BFDBFE"
-        ).pack(
-            fill="x",
-            padx=18,
             pady=(0, 15)
         )
 
-
-        self.campo(
-            "Nombre de la organización",
-            self.nombre_organizacion,
-            obligatorio=True
+        encabezado = ctk.CTkFrame(
+            card,
+            fg_color="transparent"
+        )
+        encabezado.pack(
+            fill="x",
+            padx=18,
+            pady=(15, 8)
         )
 
-        self.campo(
-            "NIT",
-            self.nit
-        )
+        ctk.CTkLabel(
+            encabezado,
+            text=titulo,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=COLOR_TEXTO
+        ).pack(anchor="w")
 
-        self.campo(
-            "Teléfono",
-            self.telefono_organizacion
-        )
+        if subtitulo:
+            ctk.CTkLabel(
+                encabezado,
+                text=subtitulo,
+                font=ctk.CTkFont(size=11),
+                text_color=COLOR_SECUNDARIO
+            ).pack(anchor="w", pady=(2, 0))
 
-        self.campo(
-            "Correo electrónico",
-            self.correo_organizacion
-        )
-
-        self.campo(
-            "Dirección",
-            self.direccion_organizacion
-        )
-
+        return card
 
     # =====================================================
-    # PASO 2 - ADMINISTRADOR
+    # INICIO
     # =====================================================
 
-    def mostrar_administrador(self):
+    def mostrar_inicio(self):
+        self.modo = None
+        self.paso_actual = 0
+        self.organizacion_seleccionada = None
+        self.tarjetas_admin = []
 
-        self.titulo_seccion(
-            "Administrador principal",
-            "Crea las credenciales del administrador de la organización."
+        self.boton_atras.configure(state="disabled")
+        self.boton_siguiente.configure(
+            state="disabled",
+            text=""
         )
 
+        self.limpiar_contenido()
 
-        self.campo(
-            "Nombre completo",
-            self.nombre_admin,
-            obligatorio=True
+        ctk.CTkLabel(
+            self.contenido,
+            text="Bienvenido al instalador",
+            font=ctk.CTkFont(size=31, weight="bold"),
+            text_color=COLOR_TEXTO
+        ).pack(
+            anchor="w",
+            padx=42,
+            pady=(70, 7)
         )
 
-        self.campo(
-            "Documento",
-            self.documento_admin,
-            obligatorio=True
+        ctk.CTkLabel(
+            self.contenido,
+            text=(
+                "Administra las organizaciones de Liquisistema desde un solo lugar.\n"
+                "Puedes crear una organización principal nueva o seleccionar una existente."
+            ),
+            font=ctk.CTkFont(size=15),
+            text_color=COLOR_SECUNDARIO,
+            justify="left"
+        ).pack(
+            anchor="w",
+            padx=42
         )
 
-        self.campo(
-            "Teléfono",
-            self.telefono_admin
+        contenedor_cards = ctk.CTkFrame(
+            self.contenido,
+            fg_color="transparent"
+        )
+        contenedor_cards.pack(
+            fill="x",
+            padx=42,
+            pady=(42, 20)
         )
 
-        self.campo(
-            "Dirección",
-            self.direccion_admin
+        self.tarjeta_inicio(
+            contenedor_cards,
+            "＋",
+            "Crear organización nueva",
+            "Crea una organización principal y sus primeras suborganizaciones.",
+            self.iniciar_nueva_organizacion
         )
 
-        self.campo(
-            "Correo electrónico",
-            self.correo_admin,
-            obligatorio=True
+        self.tarjeta_inicio(
+            contenedor_cards,
+            "🏢",
+            "Administrar organización",
+            "Selecciona una organización del panel izquierdo para agregar administradores.",
+            lambda: None
         )
 
-        self.campo(
-            "Contraseña",
-            self.password_admin,
-            obligatorio=True,
-            password=True
+        self.mostrar_aviso_token()
+
+    def tarjeta_inicio(self, parent, icono, titulo, descripcion, comando):
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=COLOR_CARD,
+            corner_radius=15,
+            border_width=1,
+            border_color=COLOR_BORDE
+        )
+        card.pack(
+            fill="x",
+            pady=(0, 14)
         )
 
-        self.campo(
-            "Confirmar contraseña",
-            self.confirmar_password,
-            obligatorio=True,
-            password=True
+        ctk.CTkLabel(
+            card,
+            text=icono,
+            width=52,
+            height=52,
+            corner_radius=12,
+            fg_color=COLOR_AZUL_SUAVE,
+            text_color=COLOR_PRINCIPAL,
+            font=ctk.CTkFont(size=25, weight="bold")
+        ).pack(
+            side="left",
+            padx=(18, 15),
+            pady=18
         )
 
+        textos = ctk.CTkFrame(card, fg_color="transparent")
+        textos.pack(side="left", fill="x", expand=True, pady=18)
+
+        ctk.CTkLabel(
+            textos,
+            text=titulo,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=COLOR_TEXTO
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            textos,
+            text=descripcion,
+            font=ctk.CTkFont(size=12),
+            text_color=COLOR_SECUNDARIO,
+            justify="left"
+        ).pack(anchor="w", pady=(4, 0))
+
+        ctk.CTkButton(
+            card,
+            text="Abrir",
+            width=95,
+            height=38,
+            command=comando
+        ).pack(
+            side="right",
+            padx=18
+        )
+
+    def mostrar_aviso_token(self):
+        if self.token:
+            texto = (
+                "Token configurado. Las operaciones administrativas están listas."
+            )
+            color = "#ECFDF5"
+            texto_color = COLOR_EXITO
+        else:
+            texto = (
+                "Configura el token privado desde el botón “Token” del encabezado "
+                "antes de realizar operaciones."
+            )
+            color = "#FFF7ED"
+            texto_color = COLOR_WARNING
 
         aviso = ctk.CTkFrame(
             self.contenido,
-            fg_color="#F8FAFC",
-            corner_radius=10
+            fg_color=color,
+            corner_radius=12
         )
-
         aviso.pack(
             fill="x",
-            padx=30,
-            pady=(5, 30)
+            padx=42,
+            pady=(10, 20)
         )
 
         ctk.CTkLabel(
             aviso,
-            text="La contraseña debe tener mínimo 6 caracteres.",
+            text=texto,
+            font=ctk.CTkFont(size=12),
+            text_color=texto_color,
+            justify="left",
+            wraplength=650
+        ).pack(
+            anchor="w",
+            padx=18,
+            pady=14
+        )
+
+    # =====================================================
+    # LISTAR ORGANIZACIONES
+    # =====================================================
+
+    def cargar_organizaciones(self):
+        if not self.token:
+            self.renderizar_organizaciones()
+            return
+
+        # Evita bloquear la interfaz.
+        hilo = threading.Thread(
+            target=self._cargar_organizaciones_hilo,
+            daemon=True
+        )
+        hilo.start()
+
+    def _cargar_organizaciones_hilo(self):
+        try:
+            respuesta = self.api_post({
+                "accion": "listar_organizaciones"
+            })
+
+            if not respuesta.get("success"):
+                raise Exception(
+                    respuesta.get(
+                        "error",
+                        "No se pudieron cargar las organizaciones."
+                    )
+                )
+
+            organizaciones = respuesta.get("organizaciones", [])
+
+            self.after(
+                0,
+                lambda: self.organizaciones_cargadas(organizaciones)
+            )
+
+        except Exception as error:
+            self.after(
+                0,
+                lambda: self.organizaciones_error(str(error))
+            )
+
+    def organizaciones_cargadas(self, organizaciones):
+        self.organizaciones = organizaciones or []
+        self.renderizar_organizaciones()
+
+    def organizaciones_error(self, mensaje):
+        self.organizaciones = []
+        self.renderizar_organizaciones(
+            mensaje_error="No se pudieron cargar las organizaciones."
+        )
+
+    def renderizar_organizaciones(self, mensaje_error=None):
+        for widget in self.lista_organizaciones.winfo_children():
+            widget.destroy()
+
+        termino = self.busqueda_organizacion.get().strip().lower()
+
+        filtradas = [
+            org for org in self.organizaciones
+            if termino in str(org.get("nombre", "")).lower()
+        ]
+
+        if mensaje_error:
+            ctk.CTkLabel(
+                self.lista_organizaciones,
+                text=mensaje_error,
+                font=ctk.CTkFont(size=11),
+                text_color=COLOR_ERROR,
+                wraplength=230,
+                justify="left"
+            ).pack(
+                padx=8,
+                pady=20
+            )
+            return
+
+        if not filtradas:
+            texto = (
+                "No hay organizaciones registradas."
+                if not termino
+                else "No se encontraron organizaciones."
+            )
+
+            ctk.CTkLabel(
+                self.lista_organizaciones,
+                text=texto,
+                font=ctk.CTkFont(size=11),
+                text_color=COLOR_SECUNDARIO,
+                wraplength=220,
+                justify="left"
+            ).pack(
+                padx=8,
+                pady=25
+            )
+            return
+
+        for org in filtradas:
+            self.crear_item_organizacion(org)
+
+    def crear_item_organizacion(self, organizacion):
+        seleccionado = (
+            self.organizacion_seleccionada
+            and self.organizacion_seleccionada.get("id") == organizacion.get("id")
+        )
+
+        card = ctk.CTkFrame(
+            self.lista_organizaciones,
+            fg_color=COLOR_AZUL_SUAVE if seleccionado else COLOR_CARD,
+            corner_radius=11,
+            border_width=1,
+            border_color=COLOR_PRINCIPAL if seleccionado else COLOR_BORDE,
+            cursor="hand2"
+        )
+        card.pack(
+            fill="x",
+            padx=4,
+            pady=5
+        )
+
+        cantidad = organizacion.get(
+            "cantidad_suborganizaciones",
+            organizacion.get("suborganizaciones_count", 0)
+        )
+
+        ctk.CTkLabel(
+            card,
+            text="🏢",
+            font=ctk.CTkFont(size=18),
+            text_color=COLOR_PRINCIPAL
+        ).pack(
+            side="left",
+            padx=(10, 7),
+            pady=10
+        )
+
+        textos = ctk.CTkFrame(card, fg_color="transparent")
+        textos.pack(
+            side="left",
+            fill="x",
+            expand=True,
+            padx=(0, 8),
+            pady=8
+        )
+
+        ctk.CTkLabel(
+            textos,
+            text=str(organizacion.get("nombre", "Sin nombre")),
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLOR_TEXTO,
+            anchor="w"
+        ).pack(
+            fill="x"
+        )
+
+        ctk.CTkLabel(
+            textos,
+            text=f"{cantidad} suborganización(es)",
+            font=ctk.CTkFont(size=10),
+            text_color=COLOR_SECUNDARIO,
+            anchor="w"
+        ).pack(
+            fill="x",
+            pady=(2, 0)
+        )
+
+        def seleccionar(_event=None, org=organizacion):
+            self.seleccionar_organizacion(org)
+
+        for widget in (card, textos):
+            widget.bind("<Button-1>", seleccionar)
+
+        for child in textos.winfo_children():
+            child.bind("<Button-1>", seleccionar)
+
+    def seleccionar_organizacion(self, organizacion):
+        self.organizacion_seleccionada = organizacion
+        self.renderizar_organizaciones()
+        self.mostrar_organizacion_existente()
+
+    # =====================================================
+    # NUEVA ORGANIZACIÓN
+    # =====================================================
+
+    def iniciar_nueva_organizacion(self):
+        self.modo = "nueva"
+        self.paso_actual = 1
+        self.organizacion_seleccionada = None
+        self.nombre_principal.set("")
+        self.tarjetas_admin = []
+
+        self.boton_atras.configure(state="normal")
+        self.boton_siguiente.configure(
+            state="normal",
+            text="Siguiente →"
+        )
+
+        self.mostrar_paso_nueva(1)
+
+    # =====================================================
+    # ORGANIZACIÓN EXISTENTE
+    # =====================================================
+
+    def mostrar_organizacion_existente(self):
+        if not self.organizacion_seleccionada:
+            self.mostrar_inicio()
+            return
+
+        self.modo = "existente"
+        self.paso_actual = 1
+        self.tarjetas_admin = []
+
+        self.boton_atras.configure(state="normal")
+        self.boton_siguiente.configure(
+            state="normal",
+            text="Agregar administrador →"
+        )
+
+        self.limpiar_contenido()
+
+        nombre = self.organizacion_seleccionada.get(
+            "nombre",
+            "Organización"
+        )
+
+        cantidad = self.organizacion_seleccionada.get(
+            "cantidad_suborganizaciones",
+            self.organizacion_seleccionada.get(
+                "suborganizaciones_count",
+                0
+            )
+        )
+
+        self.titulo_seccion(
+            nombre,
+            "Administración de la organización principal seleccionada."
+        )
+
+        info = ctk.CTkFrame(
+            self.contenido,
+            fg_color=COLOR_AZUL_SUAVE,
+            corner_radius=14
+        )
+        info.pack(
+            fill="x",
+            padx=32,
+            pady=(0, 22)
+        )
+
+        ctk.CTkLabel(
+            info,
+            text="Organización principal",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLOR_PRINCIPAL
+        ).pack(
+            anchor="w",
+            padx=18,
+            pady=(16, 2)
+        )
+
+        ctk.CTkLabel(
+            info,
+            text=nombre,
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=COLOR_TEXTO
+        ).pack(
+            anchor="w",
+            padx=18
+        )
+
+        ctk.CTkLabel(
+            info,
+            text=f"{cantidad} suborganización(es) registrada(s)",
             font=ctk.CTkFont(size=12),
             text_color=COLOR_SECUNDARIO
+        ).pack(
+            anchor="w",
+            padx=18,
+            pady=(3, 16)
+        )
+
+        ctk.CTkLabel(
+            self.contenido,
+            text="¿Qué deseas hacer?",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLOR_TEXTO
+        ).pack(
+            anchor="w",
+            padx=32,
+            pady=(5, 12)
+        )
+
+        accion = ctk.CTkFrame(
+            self.contenido,
+            fg_color=COLOR_SUAVE,
+            corner_radius=13,
+            border_width=1,
+            border_color=COLOR_BORDE
+        )
+        accion.pack(
+            fill="x",
+            padx=32,
+            pady=(0, 30)
+        )
+
+        ctk.CTkLabel(
+            accion,
+            text="＋",
+            width=48,
+            height=48,
+            corner_radius=12,
+            fg_color=COLOR_AZUL_SUAVE,
+            text_color=COLOR_PRINCIPAL,
+            font=ctk.CTkFont(size=26, weight="bold")
+        ).pack(
+            side="left",
+            padx=(18, 14),
+            pady=18
+        )
+
+        textos = ctk.CTkFrame(accion, fg_color="transparent")
+        textos.pack(
+            side="left",
+            fill="x",
+            expand=True,
+            pady=17
+        )
+
+        ctk.CTkLabel(
+            textos,
+            text="Agregar administrador",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=COLOR_TEXTO
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            textos,
+            text=(
+                "Crea una nueva suborganización y su administrador "
+                "dentro de esta organización principal."
+            ),
+            font=ctk.CTkFont(size=11),
+            text_color=COLOR_SECUNDARIO,
+            wraplength=520,
+            justify="left"
+        ).pack(
+            anchor="w",
+            pady=(3, 0)
+        )
+
+        ctk.CTkButton(
+            accion,
+            text="Continuar →",
+            width=120,
+            height=38,
+            command=self.iniciar_agregar_admin_existente
+        ).pack(
+            side="right",
+            padx=18
+        )
+
+    def iniciar_agregar_admin_existente(self):
+        self.modo = "existente"
+        self.paso_actual = 2
+        self.tarjetas_admin = []
+
+        self.boton_atras.configure(state="normal")
+        self.boton_siguiente.configure(
+            state="normal",
+            text="Revisar →"
+        )
+
+        self.mostrar_formulario_administradores()
+
+    # =====================================================
+    # PASOS NUEVA ORGANIZACIÓN
+    # =====================================================
+
+    def mostrar_paso_nueva(self, paso):
+        self.paso_actual = paso
+
+        if paso == 1:
+            self.mostrar_formulario_principal()
+
+        elif paso == 2:
+            self.mostrar_formulario_administradores()
+
+        elif paso == 3:
+            self.mostrar_resumen_nueva()
+
+    def mostrar_formulario_principal(self):
+        self.limpiar_contenido()
+
+        self.titulo_seccion(
+            "Organización principal",
+            "Define el nombre de la organización que agrupará sus suborganizaciones."
+        )
+
+        card = ctk.CTkFrame(
+            self.contenido,
+            fg_color=COLOR_SUAVE,
+            corner_radius=14,
+            border_width=1,
+            border_color=COLOR_BORDE
+        )
+        card.pack(
+            fill="x",
+            padx=32,
+            pady=(0, 25)
+        )
+
+        interior = ctk.CTkFrame(
+            card,
+            fg_color="transparent"
+        )
+        interior.pack(
+            fill="x",
+            padx=20,
+            pady=20
+        )
+
+        self.campo(
+            interior,
+            "Nombre de la organización principal",
+            self.nombre_principal,
+            obligatorio=True,
+            placeholder_text="Ej. Grupo Edith"
+        )
+
+        aviso = ctk.CTkFrame(
+            interior,
+            fg_color=COLOR_AZUL_SUAVE,
+            corner_radius=10
+        )
+        aviso.pack(
+            fill="x",
+            pady=(5, 0)
+        )
+
+        ctk.CTkLabel(
+            aviso,
+            text=(
+                "Este nombre se guardará en organizaciones_principales. "
+                "Los datos de NIT, teléfono, correo y dirección pertenecen "
+                "a cada suborganización."
+            ),
+            font=ctk.CTkFont(size=11),
+            text_color=COLOR_SECUNDARIO,
+            justify="left",
+            wraplength=700
         ).pack(
             anchor="w",
             padx=15,
             pady=12
         )
 
-
     # =====================================================
-    # PASO 3 - RESUMEN
+    # ADMINISTRADORES DINÁMICOS
     # =====================================================
 
-    def mostrar_resumen(self):
+    def mostrar_formulario_administradores(self):
+        self.limpiar_contenido()
 
-        self.titulo_seccion(
-            "Revisar instalación",
-            "Comprueba la información antes de crear la organización."
+        if self.modo == "nueva":
+            titulo = "Administradores y suborganizaciones"
+            descripcion = (
+                "Cada administrador tendrá una suborganización propia "
+                "dentro de la organización principal."
+            )
+        else:
+            titulo = "Agregar administrador"
+            descripcion = (
+                "Completa los datos de la nueva suborganización y "
+                "su administrador."
+            )
+
+        self.titulo_seccion(titulo, descripcion)
+
+        contenedor = ctk.CTkFrame(
+            self.contenido,
+            fg_color="transparent"
+        )
+        contenedor.pack(
+            fill="x",
+            padx=32
         )
 
+        self.admins_contenedor = contenedor
 
-        self.tarjeta_resumen(
-            "ORGANIZACIÓN",
-            [
-                ("Nombre", self.nombre_organizacion.get()),
-                ("NIT", self.nit.get() or "No especificado"),
-                ("Teléfono", self.telefono_organizacion.get() or "No especificado"),
-                ("Correo", self.correo_organizacion.get() or "No especificado"),
-                ("Dirección", self.direccion_organizacion.get() or "No especificada"),
-            ]
+        if not self.tarjetas_admin:
+            self.agregar_tarjeta_admin()
+
+        else:
+            for datos in self.tarjetas_admin:
+                self.construir_tarjeta_admin(datos)
+
+        ctk.CTkButton(
+            contenedor,
+            text="＋  Agregar administrador",
+            height=43,
+            corner_radius=10,
+            fg_color=COLOR_SUAVE,
+            hover_color="#E2E8F0",
+            text_color=COLOR_PRINCIPAL,
+            border_width=1,
+            border_color=COLOR_PRINCIPAL,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self.agregar_tarjeta_admin
+        ).pack(
+            fill="x",
+            pady=(2, 25)
         )
-
-
-        self.tarjeta_resumen(
-            "ADMINISTRADOR",
-            [
-                ("Nombre", self.nombre_admin.get()),
-                ("Documento", self.documento_admin.get()),
-                ("Teléfono", self.telefono_admin.get() or "No especificado"),
-                ("Dirección", self.direccion_admin.get() or "No especificada"),
-                ("Correo", self.correo_admin.get()),
-                ("Rol", "Administrador"),
-            ]
-        )
-
 
         aviso = ctk.CTkFrame(
-            self.contenido,
-            fg_color="#ECFDF5",
-            corner_radius=12
+            contenedor,
+            fg_color="#F8FAFC",
+            corner_radius=10
         )
-
         aviso.pack(
             fill="x",
-            padx=30,
-            pady=(5, 30)
+            pady=(0, 25)
         )
 
         ctk.CTkLabel(
             aviso,
-            text="✓ Todo listo para instalar",
-            font=ctk.CTkFont(
-                size=15,
-                weight="bold"
+            text=(
+                "Puedes agregar uno o varios administradores. "
+                "Cada tarjeta representa exactamente una suborganización "
+                "y un administrador."
             ),
-            text_color=COLOR_EXITO
+            font=ctk.CTkFont(size=11),
+            text_color=COLOR_SECUNDARIO,
+            justify="left",
+            wraplength=720
         ).pack(
             anchor="w",
+            padx=15,
+            pady=12
+        )
+
+    def nuevo_dato_admin(self):
+        return {
+            # Suborganización
+            "sub_nombre": ctk.StringVar(),
+            "sub_nit": ctk.StringVar(),
+            "sub_telefono": ctk.StringVar(),
+            "sub_correo": ctk.StringVar(),
+            "sub_direccion": ctk.StringVar(),
+
+            # Administrador
+            "admin_nombre": ctk.StringVar(),
+            "admin_documento": ctk.StringVar(),
+            "admin_telefono": ctk.StringVar(),
+            "admin_direccion": ctk.StringVar(),
+            "admin_correo": ctk.StringVar(),
+            "admin_password": ctk.StringVar(),
+            "admin_confirmar": ctk.StringVar(),
+
+            "frame": None
+        }
+
+    def agregar_tarjeta_admin(self):
+        datos = self.nuevo_dato_admin()
+        self.tarjetas_admin.append(datos)
+
+        if hasattr(self, "admins_contenedor"):
+            self.construir_tarjeta_admin(datos)
+
+    def construir_tarjeta_admin(self, datos):
+        numero = self.tarjetas_admin.index(datos) + 1
+
+        card = ctk.CTkFrame(
+            self.admins_contenedor,
+            fg_color=COLOR_SUAVE,
+            corner_radius=14,
+            border_width=1,
+            border_color=COLOR_BORDE
+        )
+        card.pack(
+            fill="x",
+            pady=(0, 18)
+        )
+
+        datos["frame"] = card
+
+        header = ctk.CTkFrame(
+            card,
+            fg_color="transparent"
+        )
+        header.pack(
+            fill="x",
             padx=18,
-            pady=(15, 3)
+            pady=(15, 10)
         )
 
         ctk.CTkLabel(
-            aviso,
-            text="Al continuar se creará la organización y su administrador.",
-            font=ctk.CTkFont(size=12),
-            text_color=COLOR_SECUNDARIO
-        ).pack(
-            anchor="w",
+            header,
+            text=f"Administrador {numero}",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLOR_TEXTO
+        ).pack(side="left")
+
+        if len(self.tarjetas_admin) > 1:
+            ctk.CTkButton(
+                header,
+                text="Eliminar",
+                width=75,
+                height=30,
+                corner_radius=8,
+                fg_color="#FEE2E2",
+                hover_color="#FECACA",
+                text_color=COLOR_ERROR,
+                command=lambda d=datos: self.eliminar_tarjeta_admin(d)
+            ).pack(side="right")
+
+        body = ctk.CTkFrame(
+            card,
+            fg_color="transparent"
+        )
+        body.pack(
+            fill="x",
             padx=18,
             pady=(0, 15)
         )
 
+        # Suborganización
+        ctk.CTkLabel(
+            body,
+            text="SUBORGANIZACIÓN",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=COLOR_PRINCIPAL
+        ).pack(
+            anchor="w",
+            pady=(0, 10)
+        )
+
+        self.campo(
+            body,
+            "Nombre",
+            datos["sub_nombre"],
+            obligatorio=True,
+            placeholder_text="Ej. Farmacia Edith"
+        )
+
+        self.campo(
+            body,
+            "NIT",
+            datos["sub_nit"],
+            placeholder_text="Opcional"
+        )
+
+        self.campo(
+            body,
+            "Teléfono",
+            datos["sub_telefono"],
+            placeholder_text="Opcional"
+        )
+
+        self.campo(
+            body,
+            "Correo",
+            datos["sub_correo"],
+            placeholder_text="Opcional"
+        )
+
+        self.campo(
+            body,
+            "Dirección",
+            datos["sub_direccion"],
+            placeholder_text="Opcional"
+        )
+
+        # Separador
+        ctk.CTkFrame(
+            body,
+            height=1,
+            fg_color=COLOR_BORDE
+        ).pack(
+            fill="x",
+            pady=(2, 18)
+        )
+
+        # Administrador
+        ctk.CTkLabel(
+            body,
+            text="ADMINISTRADOR",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=COLOR_PRINCIPAL
+        ).pack(
+            anchor="w",
+            pady=(0, 10)
+        )
+
+        self.campo(
+            body,
+            "Nombre completo",
+            datos["admin_nombre"],
+            obligatorio=True,
+            placeholder_text="Ej. Edith Acevedo"
+        )
+
+        self.campo(
+            body,
+            "Documento",
+            datos["admin_documento"],
+            obligatorio=True,
+            placeholder_text="Número de documento"
+        )
+
+        self.campo(
+            body,
+            "Teléfono",
+            datos["admin_telefono"],
+            placeholder_text="Opcional"
+        )
+
+        self.campo(
+            body,
+            "Dirección",
+            datos["admin_direccion"],
+            placeholder_text="Opcional"
+        )
+
+        self.campo(
+            body,
+            "Correo electrónico",
+            datos["admin_correo"],
+            obligatorio=True,
+            placeholder_text="correo@ejemplo.com"
+        )
+
+        self.campo(
+            body,
+            "Contraseña",
+            datos["admin_password"],
+            obligatorio=True,
+            password=True
+        )
+
+        self.campo(
+            body,
+            "Confirmar contraseña",
+            datos["admin_confirmar"],
+            obligatorio=True,
+            password=True
+        )
+
+        ctk.CTkLabel(
+            body,
+            text="La contraseña debe tener mínimo 6 caracteres.",
+            font=ctk.CTkFont(size=11),
+            text_color=COLOR_SECUNDARIO
+        ).pack(
+            anchor="w",
+            pady=(0, 2)
+        )
+
+    def eliminar_tarjeta_admin(self, datos):
+        if len(self.tarjetas_admin) <= 1:
+            return
+
+        self.tarjetas_admin.remove(datos)
+
+        self.mostrar_formulario_administradores()
 
     # =====================================================
-    # TARJETA RESUMEN
+    # VALIDACIONES
+    # =====================================================
+
+    def validar_token(self):
+        if not self.token:
+            self.mostrar_error(
+                "Configura primero el token de instalación desde el botón “Token”."
+            )
+            return False
+
+        return True
+
+    def validar_principal(self):
+        if not self.nombre_principal.get().strip():
+            self.mostrar_error(
+                "El nombre de la organización principal es obligatorio."
+            )
+            return False
+
+        return True
+
+    def validar_admin(self, datos, numero):
+        errores = []
+
+        if not datos["sub_nombre"].get().strip():
+            errores.append("• Nombre de la suborganización")
+
+        if not datos["admin_nombre"].get().strip():
+            errores.append("• Nombre del administrador")
+
+        if not datos["admin_documento"].get().strip():
+            errores.append("• Documento del administrador")
+
+        correo = datos["admin_correo"].get().strip()
+
+        if not correo:
+            errores.append("• Correo del administrador")
+        elif "@" not in correo:
+            errores.append("• El correo del administrador no es válido")
+
+        password = datos["admin_password"].get()
+
+        if not password:
+            errores.append("• Contraseña")
+
+        elif len(password) < 6:
+            errores.append("• La contraseña debe tener mínimo 6 caracteres")
+
+        if password != datos["admin_confirmar"].get():
+            errores.append("• Las contraseñas no coinciden")
+
+        if errores:
+            self.mostrar_error(
+                f"Revisa el Administrador {numero}:\n\n"
+                + "\n".join(errores)
+            )
+            return False
+
+        return True
+
+    def validar_administradores(self):
+        if not self.tarjetas_admin:
+            self.mostrar_error(
+                "Debes agregar al menos un administrador."
+            )
+            return False
+
+        for numero, datos in enumerate(self.tarjetas_admin, start=1):
+            if not self.validar_admin(datos, numero):
+                return False
+
+        return True
+
+    # =====================================================
+    # NAVEGACIÓN
+    # =====================================================
+
+    def ir_siguiente(self):
+        if self.instalando:
+            return
+
+        if not self.validar_token():
+            return
+
+        if self.modo == "nueva":
+            if self.paso_actual == 1:
+                if self.validar_principal():
+                    self.paso_actual = 2
+                    self.boton_siguiente.configure(
+                        text="Revisar instalación →"
+                    )
+                    self.mostrar_formulario_administradores()
+
+            elif self.paso_actual == 2:
+                if self.validar_administradores():
+                    self.paso_actual = 3
+                    self.boton_siguiente.configure(
+                        text="🚀 Crear instalación"
+                    )
+                    self.mostrar_resumen_nueva()
+
+            elif self.paso_actual == 3:
+                self.instalar_nueva()
+
+        elif self.modo == "existente":
+            if self.paso_actual == 1:
+                self.iniciar_agregar_admin_existente()
+
+            elif self.paso_actual == 2:
+                if self.validar_administradores():
+                    self.paso_actual = 3
+                    self.boton_siguiente.configure(
+                        text="🚀 Crear administrador"
+                    )
+                    self.mostrar_resumen_existente()
+
+            elif self.paso_actual == 3:
+                self.instalar_en_existente()
+
+    def ir_atras(self):
+        if self.instalando:
+            return
+
+        if self.modo == "nueva":
+            if self.paso_actual == 2:
+                self.paso_actual = 1
+                self.boton_siguiente.configure(
+                    text="Siguiente →"
+                )
+                self.mostrar_formulario_principal()
+
+            elif self.paso_actual == 3:
+                self.paso_actual = 2
+                self.boton_siguiente.configure(
+                    text="Revisar instalación →"
+                )
+                self.mostrar_formulario_administradores()
+
+        elif self.modo == "existente":
+            if self.paso_actual == 2:
+                self.mostrar_organizacion_existente()
+
+            elif self.paso_actual == 3:
+                self.paso_actual = 2
+                self.boton_siguiente.configure(
+                    text="Revisar →"
+                )
+                self.mostrar_formulario_administradores()
+
+    # =====================================================
+    # RESÚMENES
     # =====================================================
 
     def tarjeta_resumen(self, titulo, datos):
-
         card = ctk.CTkFrame(
             self.contenido,
-            fg_color="#F8FAFC",
+            fg_color=COLOR_SUAVE,
             corner_radius=12,
             border_width=1,
             border_color=COLOR_BORDE
         )
-
         card.pack(
             fill="x",
-            padx=30,
+            padx=32,
             pady=(0, 18)
         )
-
 
         ctk.CTkLabel(
             card,
             text=titulo,
-            font=ctk.CTkFont(
-                size=12,
-                weight="bold"
-            ),
+            font=ctk.CTkFont(size=11, weight="bold"),
             text_color=COLOR_PRINCIPAL
         ).pack(
             anchor="w",
             padx=18,
-            pady=(15, 12)
+            pady=(15, 10)
         )
 
-
         for etiqueta, valor in datos:
-
             fila = ctk.CTkFrame(
                 card,
                 fg_color="transparent"
             )
-
             fila.pack(
                 fill="x",
                 padx=18,
@@ -916,212 +1798,206 @@ class InstaladorLiquisistema(ctk.CTk):
             ctk.CTkLabel(
                 fila,
                 text=f"{etiqueta}:",
-                width=110,
+                width=135,
                 anchor="w",
-                font=ctk.CTkFont(size=12),
+                font=ctk.CTkFont(size=11),
                 text_color=COLOR_SECUNDARIO
-            ).pack(
-                side="left"
-            )
+            ).pack(side="left")
 
             ctk.CTkLabel(
                 fila,
-                text=valor,
+                text=str(valor),
                 anchor="w",
-                font=ctk.CTkFont(
-                    size=12,
-                    weight="bold"
-                ),
-                text_color=COLOR_TEXTO
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=COLOR_TEXTO,
+                justify="left"
             ).pack(
                 side="left",
                 fill="x",
                 expand=True
             )
 
-
         ctk.CTkFrame(
             card,
-            height=10,
+            height=8,
             fg_color="transparent"
         ).pack()
 
+    def mostrar_resumen_nueva(self):
+        self.limpiar_contenido()
 
-    # =====================================================
-    # VALIDAR ORGANIZACIÓN
-    # =====================================================
+        self.titulo_seccion(
+            "Revisar instalación",
+            "Comprueba la organización principal y sus administradores antes de crearla."
+        )
 
-    def validar_organizacion(self):
+        self.tarjeta_resumen(
+            "ORGANIZACIÓN PRINCIPAL",
+            [
+                ("Nombre", self.nombre_principal.get())
+            ]
+        )
 
-        if not self.token.get().strip():
-
-            self.mostrar_error(
-                "Debes ingresar el token de instalación."
+        for numero, datos in enumerate(self.tarjetas_admin, start=1):
+            self.tarjeta_resumen(
+                f"SUBORGANIZACIÓN {numero}",
+                [
+                    ("Nombre", datos["sub_nombre"].get()),
+                    ("NIT", datos["sub_nit"].get() or "No especificado"),
+                    ("Teléfono", datos["sub_telefono"].get() or "No especificado"),
+                    ("Correo", datos["sub_correo"].get() or "No especificado"),
+                    ("Dirección", datos["sub_direccion"].get() or "No especificada"),
+                    ("Administrador", datos["admin_nombre"].get()),
+                    ("Documento", datos["admin_documento"].get()),
+                    ("Correo admin", datos["admin_correo"].get()),
+                    ("Rol", "admin")
+                ]
             )
 
-            return False
-
-
-        if not self.nombre_organizacion.get().strip():
-
-            self.mostrar_error(
-                "El nombre de la organización es obligatorio."
-            )
-
-            return False
-
-
-        return True
-
-
-    # =====================================================
-    # VALIDAR ADMINISTRADOR
-    # =====================================================
-
-    def validar_administrador(self):
-
-        if not self.nombre_admin.get().strip():
-
-            self.mostrar_error(
-                "El nombre del administrador es obligatorio."
-            )
-
-            return False
-
-
-        if not self.documento_admin.get().strip():
-
-            self.mostrar_error(
-                "El documento es obligatorio."
-            )
-
-            return False
-
-
-        if not self.correo_admin.get().strip():
-
-            self.mostrar_error(
-                "El correo del administrador es obligatorio."
-            )
-
-            return False
-
-
-        password = self.password_admin.get()
-
-        if not password:
-
-            self.mostrar_error(
-                "Debes ingresar una contraseña."
-            )
-
-            return False
-
-
-        if len(password) < 6:
-
-            self.mostrar_error(
-                "La contraseña debe tener mínimo 6 caracteres."
-            )
-
-            return False
-
-
-        if password != self.confirmar_password.get():
-
-            self.mostrar_error(
-                "Las contraseñas no coinciden."
-            )
-
-            return False
-
-
-        return True
-
-
-    # =====================================================
-    # NAVEGACIÓN
-    # =====================================================
-
-    def ir_siguiente(self):
-
-        if self.paso_actual == 1:
-
-            if self.validar_organizacion():
-                self.mostrar_paso(2)
-
-        elif self.paso_actual == 2:
-
-            if self.validar_administrador():
-                self.mostrar_paso(3)
-
-        elif self.paso_actual == 3:
-
-            self.instalar()
-
-
-    def ir_atras(self):
-
-        if self.paso_actual > 1:
-
-            self.mostrar_paso(
-                self.paso_actual - 1
-            )
-
-
-    # =====================================================
-    # ERROR
-    # =====================================================
-
-    def mostrar_error(self, mensaje):
-
-        ventana = ctk.CTkToplevel(self)
-
-        ventana.title("Liquisistema")
-        ventana.geometry("430x210")
-        ventana.resizable(False, False)
-
-        ventana.transient(self)
-        ventana.grab_set()
-
-        ctk.CTkLabel(
-            ventana,
-            text="⚠",
-            font=ctk.CTkFont(
-                size=35,
-                weight="bold"
+        self.aviso_final(
+            "✓ Todo listo para instalar",
+            (
+                f"Se creará 1 organización principal, "
+                f"{len(self.tarjetas_admin)} suborganización(es) "
+                f"y {len(self.tarjetas_admin)} administrador(es)."
             ),
-            text_color=COLOR_ERROR
-        ).pack(
-            pady=(20, 5)
+            COLOR_EXITO,
+            "#ECFDF5"
+        )
+
+    def mostrar_resumen_existente(self):
+        self.limpiar_contenido()
+
+        nombre = self.organizacion_seleccionada.get(
+            "nombre",
+            "Organización"
+        )
+
+        self.titulo_seccion(
+            "Revisar nuevo administrador",
+            f"Se agregará una nueva suborganización dentro de “{nombre}”."
+        )
+
+        self.tarjeta_resumen(
+            "ORGANIZACIÓN PRINCIPAL",
+            [
+                ("Nombre", nombre),
+                ("ID", self.organizacion_seleccionada.get("id", "No disponible"))
+            ]
+        )
+
+        datos = self.tarjetas_admin[0]
+
+        self.tarjeta_resumen(
+            "NUEVA SUBORGANIZACIÓN",
+            [
+                ("Nombre", datos["sub_nombre"].get()),
+                ("NIT", datos["sub_nit"].get() or "No especificado"),
+                ("Teléfono", datos["sub_telefono"].get() or "No especificado"),
+                ("Correo", datos["sub_correo"].get() or "No especificado"),
+                ("Dirección", datos["sub_direccion"].get() or "No especificada"),
+                ("Administrador", datos["admin_nombre"].get()),
+                ("Documento", datos["admin_documento"].get()),
+                ("Correo admin", datos["admin_correo"].get()),
+                ("Rol", "admin")
+            ]
+        )
+
+        self.aviso_final(
+            "✓ Listo para agregar",
+            "Se creará una nueva suborganización con su administrador.",
+            COLOR_EXITO,
+            "#ECFDF5"
+        )
+
+    def aviso_final(self, titulo, texto, color, fondo):
+        aviso = ctk.CTkFrame(
+            self.contenido,
+            fg_color=fondo,
+            corner_radius=12
+        )
+        aviso.pack(
+            fill="x",
+            padx=32,
+            pady=(5, 30)
         )
 
         ctk.CTkLabel(
-            ventana,
-            text=mensaje,
-            font=ctk.CTkFont(size=14),
-            text_color=COLOR_TEXTO,
-            wraplength=370
+            aviso,
+            text=titulo,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=color
         ).pack(
-            padx=25
+            anchor="w",
+            padx=18,
+            pady=(15, 3)
         )
 
-        ctk.CTkButton(
-            ventana,
-            text="Entendido",
-            width=120,
-            command=ventana.destroy
+        ctk.CTkLabel(
+            aviso,
+            text=texto,
+            font=ctk.CTkFont(size=12),
+            text_color=COLOR_SECUNDARIO,
+            justify="left",
+            wraplength=700
         ).pack(
-            pady=20
+            anchor="w",
+            padx=18,
+            pady=(0, 15)
         )
 
+    # =====================================================
+    # PAYLOAD
+    # =====================================================
+
+    def construir_admin_payload(self, datos):
+        return {
+            "suborganizacion": {
+                "nombre": datos["sub_nombre"].get().strip(),
+                "nit": datos["sub_nit"].get().strip() or None,
+                "telefono": datos["sub_telefono"].get().strip() or None,
+                "correo": datos["sub_correo"].get().strip().lower() or None,
+                "direccion": datos["sub_direccion"].get().strip() or None
+            },
+            "administrador": {
+                "nombre": datos["admin_nombre"].get().strip(),
+                "documento": datos["admin_documento"].get().strip(),
+                "telefono": datos["admin_telefono"].get().strip() or None,
+                "direccion": datos["admin_direccion"].get().strip() or None,
+                "correo": datos["admin_correo"].get().strip().lower(),
+                "password": datos["admin_password"].get()
+            }
+        }
+
+    def construir_payload_nueva(self):
+        return {
+            "accion": "crear_instalacion",
+            "organizacion_principal": {
+                "nombre": self.nombre_principal.get().strip()
+            },
+            "administradores": [
+                self.construir_admin_payload(datos)
+                for datos in self.tarjetas_admin
+            ]
+        }
+
+    def construir_payload_existente(self):
+        return {
+            "accion": "agregar_administradores",
+            "organizacion_principal_id": (
+                self.organizacion_seleccionada.get("id")
+            ),
+            "administradores": [
+                self.construir_admin_payload(datos)
+                for datos in self.tarjetas_admin
+            ]
+        }
 
     # =====================================================
-    # INSTALAR
+    # INSTALACIÓN
     # =====================================================
 
-    def instalar(self):
-
+    def instalar_nueva(self):
         if self.instalando:
             return
 
@@ -1131,346 +2007,325 @@ class InstaladorLiquisistema(ctk.CTk):
             state="disabled",
             text="Creando instalación..."
         )
+        self.boton_atras.configure(state="disabled")
 
-        self.boton_atras.configure(
-            state="disabled"
-        )
+        datos = self.construir_payload_nueva()
 
-
-        datos = {
-
-            "organizacion": {
-
-                "nombre":
-                    self.nombre_organizacion.get().strip(),
-
-                "nit":
-                    self.nit.get().strip() or None,
-
-                "telefono":
-                    self.telefono_organizacion.get().strip() or None,
-
-                "correo":
-                    self.correo_organizacion.get().strip() or None,
-
-                "direccion":
-                    self.direccion_organizacion.get().strip() or None,
-            },
-
-            "administrador": {
-
-                "nombre":
-                    self.nombre_admin.get().strip(),
-
-                "documento":
-                    self.documento_admin.get().strip(),
-
-                "telefono":
-                    self.telefono_admin.get().strip() or None,
-
-                "direccion":
-                    self.direccion_admin.get().strip() or None,
-
-                "correo":
-                    self.correo_admin.get().strip().lower(),
-
-                "password":
-                    self.password_admin.get(),
-            }
-        }
-
-
-        hilo = threading.Thread(
-            target=self.enviar_instalacion,
-            args=(datos,),
+        threading.Thread(
+            target=self.enviar_operacion,
+            args=(datos, "nueva"),
             daemon=True
+        ).start()
+
+    def instalar_en_existente(self):
+        if self.instalando:
+            return
+
+        self.instalando = True
+
+        self.boton_siguiente.configure(
+            state="disabled",
+            text="Creando administrador..."
+        )
+        self.boton_atras.configure(state="disabled")
+
+        datos = self.construir_payload_existente()
+
+        threading.Thread(
+            target=self.enviar_operacion,
+            args=(datos, "existente"),
+            daemon=True
+        ).start()
+
+    # =====================================================
+    # API
+    # =====================================================
+
+    def api_post(self, datos):
+        body = json.dumps(datos).encode("utf-8")
+
+        request = urllib.request.Request(
+            SUPABASE_FUNCTION_URL,
+            data=body,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "x-installer-token": self.token
+            }
         )
 
-        hilo.start()
-
-
-    # =====================================================
-    # ENVIAR A SUPABASE
-    # =====================================================
-
-    def enviar_instalacion(self, datos):
-
-        try:
-
-            body = json.dumps(datos).encode("utf-8")
-
-
-            request = urllib.request.Request(
-                SUPABASE_FUNCTION_URL,
-                data=body,
-                method="POST",
-                headers={
-                    "Content-Type": "application/json",
-                    "x-installer-token": self.token.get().strip()
-                }
+        with urllib.request.urlopen(
+            request,
+            timeout=30
+        ) as response:
+            respuesta_texto = (
+                response.read().decode("utf-8")
             )
 
+        respuesta = json.loads(respuesta_texto)
 
-            with urllib.request.urlopen(
-                request,
-                timeout=30
-            ) as response:
+        return respuesta
 
-                respuesta_texto = (
-                    response
-                    .read()
-                    .decode("utf-8")
-                )
-
-                respuesta = json.loads(
-                    respuesta_texto
-                )
-
+    def enviar_operacion(self, datos, tipo):
+        try:
+            respuesta = self.api_post(datos)
 
             if not respuesta.get("success"):
-
                 raise Exception(
                     respuesta.get(
                         "error",
-                        "La instalación no fue completada."
+                        "La operación no fue completada."
                     )
                 )
 
-
             self.after(
                 0,
-                lambda: self.instalacion_exitosa(
-                    respuesta
+                lambda: self.operacion_exitosa(
+                    respuesta,
+                    tipo
                 )
             )
 
-
         except urllib.error.HTTPError as error:
-
             try:
-
                 detalle = (
-                    error
-                    .read()
-                    .decode("utf-8")
+                    error.read().decode("utf-8")
                 )
-
-                datos_error = json.loads(
-                    detalle
-                )
-
+                datos_error = json.loads(detalle)
                 mensaje = datos_error.get(
                     "error",
                     "Error del servidor."
                 )
-
             except Exception:
-
                 mensaje = (
-                    f"Error del servidor. "
-                    f"Código HTTP: {error.code}"
+                    f"Error del servidor. Código HTTP: {error.code}"
                 )
-
 
             self.after(
                 0,
-                lambda: self.instalacion_error(
-                    mensaje
-                )
+                lambda: self.operacion_error(mensaje)
             )
 
-
         except urllib.error.URLError as error:
-
             self.after(
                 0,
-                lambda: self.instalacion_error(
-                    f"No se pudo conectar con Supabase.\n\n"
+                lambda: self.operacion_error(
+                    "No se pudo conectar con Supabase.\n\n"
                     f"{error.reason}"
                 )
             )
 
-
         except Exception as error:
-
             self.after(
                 0,
-                lambda: self.instalacion_error(
-                    str(error)
-                )
+                lambda: self.operacion_error(str(error))
             )
 
-
     # =====================================================
-    # INSTALACIÓN EXITOSA
+    # ÉXITO
     # =====================================================
 
-    def instalacion_exitosa(self, respuesta):
-
+    def operacion_exitosa(self, respuesta, tipo):
         self.instalando = False
-
-
-        # Limpiar
         self.limpiar_contenido()
 
-
-        # Icono
         ctk.CTkLabel(
             self.contenido,
             text="✓",
-            font=ctk.CTkFont(
-                size=65,
-                weight="bold"
-            ),
+            font=ctk.CTkFont(size=70, weight="bold"),
             text_color=COLOR_EXITO
-        ).pack(
-            pady=(45, 5)
+        ).pack(pady=(45, 5))
+
+        titulo = (
+            "Instalación completada"
+            if tipo == "nueva"
+            else "Administrador agregado"
         )
 
+        descripcion = (
+            "Liquisistema está listo para utilizarse."
+            if tipo == "nueva"
+            else "La nueva suborganización y su administrador fueron creados."
+        )
 
         ctk.CTkLabel(
             self.contenido,
-            text="Instalación completada",
-            font=ctk.CTkFont(
-                size=30,
-                weight="bold"
-            ),
+            text=titulo,
+            font=ctk.CTkFont(size=30, weight="bold"),
             text_color=COLOR_TEXTO
-        ).pack(
-            pady=(0, 8)
-        )
-
+        ).pack(pady=(0, 8))
 
         ctk.CTkLabel(
             self.contenido,
-            text="Liquisistema está listo para utilizarse.",
+            text=descripcion,
             font=ctk.CTkFont(size=14),
             text_color=COLOR_SECUNDARIO
-        ).pack(
-            pady=(0, 30)
-        )
+        ).pack(pady=(0, 30))
 
-
-        organizacion = respuesta.get(
-            "organizacion",
+        principal = respuesta.get(
+            "organizacion_principal",
             {}
         )
 
-        administrador = respuesta.get(
-            "administrador",
-            {}
+        if principal:
+            self.tarjeta_resumen(
+                "ORGANIZACIÓN PRINCIPAL",
+                [
+                    (
+                        "Nombre",
+                        principal.get(
+                            "nombre",
+                            self.nombre_principal.get()
+                        )
+                    ),
+                    (
+                        "ID",
+                        principal.get(
+                            "id",
+                            self.organizacion_seleccionada.get("id")
+                            if self.organizacion_seleccionada
+                            else "No disponible"
+                        )
+                    )
+                ]
+            )
+
+        suborganizaciones = respuesta.get(
+            "suborganizaciones",
+            []
         )
 
+        if not suborganizaciones:
+            una = respuesta.get("suborganizacion")
+            if una:
+                suborganizaciones = [una]
 
-        self.tarjeta_resumen(
-            "ORGANIZACIÓN CREADA",
-            [
-                (
-                    "Nombre",
-                    organizacion.get(
-                        "nombre",
-                        self.nombre_organizacion.get()
+        for i, sub in enumerate(suborganizaciones, start=1):
+            self.tarjeta_resumen(
+                f"SUBORGANIZACIÓN {i}",
+                [
+                    (
+                        "Nombre",
+                        sub.get("nombre", "No disponible")
+                    ),
+                    (
+                        "ID",
+                        sub.get("id", "No disponible")
                     )
-                ),
+                ]
+            )
 
-                (
-                    "ID",
-                    organizacion.get(
-                        "id",
-                        "No disponible"
-                    )
-                )
-            ]
+        administradores = respuesta.get(
+            "administradores",
+            []
         )
 
+        if not administradores:
+            uno = respuesta.get("administrador")
+            if uno:
+                administradores = [uno]
 
-        self.tarjeta_resumen(
-            "ADMINISTRADOR",
-            [
-                (
-                    "Nombre",
-                    administrador.get(
-                        "nombre",
-                        self.nombre_admin.get()
+        for i, admin in enumerate(administradores, start=1):
+            self.tarjeta_resumen(
+                f"ADMINISTRADOR {i}",
+                [
+                    (
+                        "Nombre",
+                        admin.get("nombre", "No disponible")
+                    ),
+                    (
+                        "Correo",
+                        admin.get("correo", "No disponible")
+                    ),
+                    (
+                        "Rol",
+                        admin.get("rol", "admin")
                     )
-                ),
+                ]
+            )
 
-                (
-                    "Correo",
-                    administrador.get(
-                        "correo",
-                        self.correo_admin.get()
-                    )
-                ),
-
-                (
-                    "Rol",
-                    administrador.get(
-                        "rol",
-                        "admin"
-                    )
-                )
-            ]
+        self.boton_atras.configure(state="disabled")
+        self.boton_siguiente.configure(
+            state="normal",
+            text="Volver al inicio",
+            command=self.mostrar_inicio
         )
 
-
-        self.boton_atras.pack_forget()
-        self.boton_siguiente.pack_forget()
-
-
-        ctk.CTkButton(
-            self.footer,
-            text="Cerrar instalador",
-            width=180,
-            height=42,
-            corner_radius=10,
-            fg_color=COLOR_PRINCIPAL,
-            hover_color=COLOR_PRINCIPAL_HOVER,
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
-            ),
-            command=self.destroy
-        ).pack(
-            side="right"
+        self.after(
+            300,
+            self.cargar_organizaciones
         )
-
-
-        # Paso 3 queda verde
-        self.paso3_label.configure(
-            fg_color=COLOR_EXITO,
-            text_color="white"
-        )
-
 
     # =====================================================
-    # ERROR DE INSTALACIÓN
+    # ERROR
     # =====================================================
 
-    def instalacion_error(self, mensaje):
-
+    def operacion_error(self, mensaje):
         self.instalando = False
 
         self.boton_siguiente.configure(
-            state="normal",
-            text="🚀 Crear organización"
+            state="normal"
         )
-
         self.boton_atras.configure(
             state="normal"
         )
 
-        self.mostrar_error(
-            mensaje
-        )
+        if self.modo == "nueva":
+            if self.paso_actual == 3:
+                self.boton_siguiente.configure(
+                    text="🚀 Crear instalación"
+                )
+        elif self.modo == "existente":
+            if self.paso_actual == 3:
+                self.boton_siguiente.configure(
+                    text="🚀 Crear administrador"
+                )
 
+        self.mostrar_error(mensaje)
 
-# =========================================================
-# EJECUTAR
-# =========================================================
+    # =====================================================
+    # ERROR MODAL
+    # =====================================================
+
+    def mostrar_error(self, mensaje, parent=None):
+        padre = parent if parent is not None else self
+
+        ventana = ctk.CTkToplevel(padre)
+        ventana.title("Liquisistema")
+        ventana.geometry("470x250")
+        ventana.resizable(False, False)
+        ventana.transient(padre)
+        ventana.grab_set()
+
+        ctk.CTkLabel(
+            ventana,
+            text="⚠",
+            font=ctk.CTkFont(size=38, weight="bold"),
+            text_color=COLOR_ERROR
+        ).pack(pady=(20, 4))
+
+        ctk.CTkLabel(
+            ventana,
+            text=mensaje,
+            font=ctk.CTkFont(size=13),
+            text_color=COLOR_TEXTO,
+            wraplength=410,
+            justify="center"
+        ).pack(padx=25)
+
+        ctk.CTkButton(
+            ventana,
+            text="Entendido",
+            width=120,
+            height=38,
+            command=ventana.destroy
+        ).pack(pady=20)
+
+    # =====================================================
+    # EJECUTAR
+    # =====================================================
+
 
 if __name__ == "__main__":
-
     app = InstaladorLiquisistema()
-
     app.mainloop()
