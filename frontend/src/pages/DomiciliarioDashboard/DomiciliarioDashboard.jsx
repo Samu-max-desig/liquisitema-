@@ -34,12 +34,17 @@ export default function DomiciliarioDashboard() {
   const [modalClaveEdicion, setModalClaveEdicion] = useState(false);
 
   const [claveEdicion, setClaveEdicion] = useState("");
-
+  const [entregaPendienteComprobante, setEntregaPendienteComprobante] =
+    useState(null);
   const [validandoClave, setValidandoClave] = useState(false);
   const [guardandoDomicilio, setGuardandoDomicilio] = useState(false);
   const [modalEditarDomicilio, setModalEditarDomicilio] = useState(false);
   const [organizaciones, setOrganizaciones] = useState([]);
   const [organizacionSeleccionada, setOrganizacionSeleccionada] = useState("");
+  const [cierreAutomaticoMinutos, setCierreAutomaticoMinutos] = useState(null);
+  const [jornadaFinalizada, setJornadaFinalizada] = useState(false);
+  const [cargandoConfiguracionJornada, setCargandoConfiguracionJornada] =
+    useState(true);
   const [editandoDomicilio, setEditandoDomicilio] = useState(false);
   const [inicioDeslizamiento, setInicioDeslizamiento] = useState(null);
   const [desplazamientoNotificacion, setDesplazamientoNotificacion] =
@@ -62,8 +67,8 @@ export default function DomiciliarioDashboard() {
     costo: "",
     metodo_pago: "",
     estado: "",
+    organizacion_origen_id: "",
   });
-  const [claveSolucion, setClaveSolucion] = useState("");
   const [metodoPagoSolucion, setMetodoPagoSolucion] = useState("");
   const [modalSolucionReportado, setModalSolucionReportado] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -273,7 +278,6 @@ export default function DomiciliarioDashboard() {
     telefono: "",
     valor: "",
     propina: "",
-    metodo_pago: "",
     observaciones: "",
   });
   useEffect(() => {
@@ -305,11 +309,7 @@ export default function DomiciliarioDashboard() {
     };
   }, [usuario?.id]);
 
-  const guardarDomicilio = async (
-    e,
-    estadoForzado = null,
-    metodoPagoForzado = null,
-  ) => {
+  const guardarDomicilio = async (e, estadoForzado = null) => {
     const obtenerFechaLocal = (fecha = new Date()) => {
       const year = fecha.getFullYear();
       const month = String(fecha.getMonth() + 1).padStart(2, "0");
@@ -318,7 +318,6 @@ export default function DomiciliarioDashboard() {
       return `${year}-${month}-${day}`;
     };
     e?.preventDefault();
-    const metodoPago = metodoPagoForzado || formData.metodo_pago;
     if (guardandoDomicilio) return;
 
     setSubmitted(true);
@@ -331,7 +330,6 @@ export default function DomiciliarioDashboard() {
       !formData.direccion.trim() ||
       !formData.telefono.trim() ||
       !formData.valor ||
-      (!estadoForzado && !formData.metodo_pago) ||
       !organizacionSeleccionada
     ) {
       setError(
@@ -339,6 +337,44 @@ export default function DomiciliarioDashboard() {
       );
       return;
     }
+    // =====================================================
+    // VALIDAR JORNADA ANTES DE CREAR CLIENTE O DOMICILIO
+    // =====================================================
+    // El frontend muestra el estado de la jornada, pero el backend
+    // también lo valida mediante puede_crear_domicilio_en_organizacion.
+    if (jornadaFinalizada) {
+      await Swal.fire({
+        icon: "info",
+        title: "Jornada finalizada",
+        text: "No puedes registrar nuevos domicilios hasta la próxima jornada.",
+        confirmButtonColor: "#2563eb",
+      });
+      return;
+    }
+
+    const { data: puedeCrear, error: errorHorario } = await supabase.rpc(
+      "puede_crear_domicilio_en_organizacion",
+      {
+        p_organizacion_id: organizacionSeleccionada,
+      },
+    );
+
+    if (errorHorario) {
+      console.error("Error verificando la jornada:", errorHorario);
+      setError("No se pudo verificar el horario de trabajo.");
+      return;
+    }
+
+    if (puedeCrear !== true) {
+      await Swal.fire({
+        icon: "info",
+        title: "Jornada finalizada",
+        text: "No puedes registrar nuevos domicilios hasta la próxima jornada.",
+        confirmButtonColor: "#2563eb",
+      });
+      return;
+    }
+
     if (Number(formData.valor) <= 0) {
       setError("El valor debe ser mayor a 0.");
       return;
@@ -394,8 +430,8 @@ export default function DomiciliarioDashboard() {
           p_busqueda: telefonoCliente,
         });
 
-      const clienteExistente = (clientesExistentes || []).find(
-        (cliente) => cliente.telefono === telefonoCliente,
+      let clienteExistente = (clientesExistentes || []).find(
+        (cliente) => String(cliente.telefono || "").trim() === telefonoCliente,
       );
 
       if (buscarClienteError) {
@@ -409,29 +445,65 @@ export default function DomiciliarioDashboard() {
       }
 
       // ==========================================
-      // OBTENER ID DEL CLIENTE
+      // DATOS FINALES DEL CLIENTE
       // ==========================================
+      // Si el cliente ya existe, SIEMPRE usamos sus datos reales.
+      // Así no se guarda en el domicilio un nombre/dirección
+      // diferente al cliente encontrado por teléfono.
 
       let clienteId = clienteExistente?.id;
+      let clienteNombreFinal =
+        clienteExistente?.nombre || formData.cliente.trim();
+      let clienteTelefonoFinal = clienteExistente?.telefono || telefonoCliente;
+      let clienteDireccionFinal =
+        clienteExistente?.direccion || formData.direccion.trim();
 
       // ==========================================
       // CREAR CLIENTE SOLO SI NO EXISTE
       // ==========================================
+
+      if (clienteExistente) {
+        // Si el teléfono ya pertenece a un cliente que está disponible
+        // en esta organización (incluyendo clientes compartidos),
+        // podemos reutilizarlo.
+        //
+        // Solo bloqueamos cuando el usuario intenta registrar OTRO
+        // nombre con ese mismo teléfono.
+        const nombreEsElMismo =
+          String(clienteNombreFinal || "")
+            .trim()
+            .toLowerCase() ===
+          String(formData.cliente || "")
+            .trim()
+            .toLowerCase();
+
+        if (!nombreEsElMismo) {
+          await Swal.fire({
+            icon: "warning",
+            title: "Teléfono ya registrado",
+            html: `El teléfono <b>${telefonoCliente}</b> ya está registrado para <b>${clienteNombreFinal}</b>.<br><br>Si quieres usar este cliente, selecciona <b>${clienteNombreFinal}</b>. Para crear otro cliente debes usar un teléfono diferente.`,
+            confirmButtonText: "Entendido",
+          });
+          setError("");
+          return;
+        }
+
+        // Es el mismo cliente: reutilizarlo sin crear otro registro.
+        console.log("✅ CLIENTE EXISTENTE REUTILIZADO:", clienteExistente);
+      }
 
       if (!clienteExistente) {
         console.log("⚠️ CLIENTE NO ENCONTRADO.");
         console.log("Organización buscada:", organizacionSeleccionada);
         console.log("Teléfono buscado:", telefonoCliente);
 
-        const { data: nuevoCliente, error: clienteError } = await supabase.rpc(
-          "crear_cliente_para_organizacion",
-          {
+        const { data: nuevoClienteRespuesta, error: clienteError } =
+          await supabase.rpc("crear_cliente_para_organizacion", {
             p_nombre: formData.cliente.trim(),
             p_telefono: telefonoCliente,
             p_direccion: formData.direccion.trim(),
             p_organizacion_id: organizacionSeleccionada,
-          },
-        );
+          });
 
         if (clienteError) {
           console.error("========== ERROR CREANDO CLIENTE ==========");
@@ -443,24 +515,59 @@ export default function DomiciliarioDashboard() {
           console.error("==========================================");
 
           setError(clienteError.message || "No se pudo registrar el cliente.");
-
           return;
         }
 
-        if (!nuevoCliente || !nuevoCliente.id) {
+        // El RPC puede devolver un objeto o un arreglo de una fila,
+        // dependiendo de cómo esté definida la función en Supabase.
+        let nuevoCliente = Array.isArray(nuevoClienteRespuesta)
+          ? nuevoClienteRespuesta[0]
+          : nuevoClienteRespuesta;
+
+        // Si el RPC creó el cliente pero no devolvió la fila completa,
+        // la recuperamos por teléfono para no perder el cliente creado.
+        if (!nuevoCliente?.id) {
+          const { data: clienteRecuperado, error: errorRecuperandoCliente } =
+            await supabase.rpc("buscar_clientes_para_organizacion", {
+              p_organizacion_id: organizacionSeleccionada,
+              p_busqueda: telefonoCliente,
+            });
+
+          if (errorRecuperandoCliente) {
+            console.error(
+              "Error recuperando el cliente recién creado:",
+              errorRecuperandoCliente,
+            );
+            setError(
+              "El cliente pudo haberse creado, pero no se pudo verificar.",
+            );
+            return;
+          }
+
+          nuevoCliente = (clienteRecuperado || []).find(
+            (cliente) =>
+              String(cliente.telefono || "").trim() === telefonoCliente,
+          );
+        }
+
+        if (!nuevoCliente?.id) {
           console.error(
-            "El RPC no devolvió correctamente el cliente:",
-            nuevoCliente,
+            "El cliente no pudo ser recuperado después de crearlo:",
+            nuevoClienteRespuesta,
           );
 
           setError(
-            "El cliente fue creado, pero no se pudo obtener su información.",
+            "No se pudo confirmar el registro del cliente. El domicilio no fue creado.",
           );
-
           return;
         }
 
+        clienteExistente = nuevoCliente;
         clienteId = nuevoCliente.id;
+        clienteNombreFinal = nuevoCliente.nombre || formData.cliente.trim();
+        clienteTelefonoFinal = nuevoCliente.telefono || telefonoCliente;
+        clienteDireccionFinal =
+          nuevoCliente.direccion || formData.direccion.trim();
 
         console.log("✅ CLIENTE REALMENTE NUEVO:", nuevoCliente);
 
@@ -472,12 +579,21 @@ export default function DomiciliarioDashboard() {
           usuarioId: usuario.id,
           tipo: "cliente",
           accion: "crear",
-          descripcion: `Agregó al nuevo cliente ${formData.cliente}.`,
+          descripcion: `Agregó al nuevo cliente ${clienteNombreFinal}.`,
           referenciaId: clienteId,
           organizacionId: organizacionSeleccionada,
         });
       } else {
         console.log("✅ CLIENTE YA EXISTÍA:", clienteExistente);
+
+        // Reflejar los datos reales del cliente seleccionado
+        // en el formulario antes de guardar el domicilio.
+        setFormData((prev) => ({
+          ...prev,
+          cliente: clienteNombreFinal,
+          telefono: clienteTelefonoFinal,
+          direccion: clienteDireccionFinal,
+        }));
       }
 
       // ==========================================
@@ -488,6 +604,9 @@ export default function DomiciliarioDashboard() {
       console.log("AUTH USER:", usuario?.id);
       console.log("ORGANIZACIÓN SELECCIONADA:", organizacionSeleccionada);
       console.log("CLIENTE ID:", clienteId);
+      console.log("CLIENTE NOMBRE:", clienteNombreFinal);
+      console.log("CLIENTE TELÉFONO:", clienteTelefonoFinal);
+      console.log("CLIENTE DIRECCIÓN:", clienteDireccionFinal);
       console.log("====================================");
 
       // ==========================================
@@ -499,21 +618,27 @@ export default function DomiciliarioDashboard() {
         .insert([
           {
             numero_factura: numeroFactura,
-            cliente: formData.cliente.trim(),
-            telefono: telefonoCliente,
-            direccion: formData.direccion.trim(),
+            cliente: clienteNombreFinal,
+            telefono: clienteTelefonoFinal,
+            direccion: clienteDireccionFinal,
             costo: Number(formData.valor),
-            metodo_pago:
-              estadoForzado === "Reportado" ? null : formData.metodo_pago,
+            // La propina se registra desde el momento en que el domiciliario
+            // crea el domicilio. Si no se ingresa, se almacena como 0.
+            propina: Math.max(Number(formData.propina) || 0, 0),
+            // El método de pago se define posteriormente,
+            // cuando el domicilio sea entregado.
+            metodo_pago: null,
             observaciones: formData.observaciones,
             fecha: obtenerFechaLocal(),
-            // "Otro" = Pendiente
-            // Los demás métodos = Entregado
-            estado:
-              estadoForzado ||
-              (formData.metodo_pago === "Otro" ? "Pendiente" : "Entregado"),
+            // Todo domicilio nuevo inicia su recorrido como En camino.
+            // Los reportes creados desde este formulario mantienen
+            // el estado forzado "Reportado".
+            estado: estadoForzado || "En camino",
 
             domiciliario_id: usuario.id,
+
+            // Organización desde la que salió físicamente el domicilio.
+            organizacion_origen_id: organizacionSeleccionada,
 
             // El domicilio pertenece únicamente
             // a la organización seleccionada.
@@ -578,38 +703,6 @@ export default function DomiciliarioDashboard() {
           return;
         }
       }
-      if (!estadoForzado && formData.metodo_pago === "Otro") {
-        const { error: pendienteError } = await supabase.rpc(
-          "crear_o_acumular_pendiente",
-          {
-            p_cliente: formData.cliente.trim(),
-            p_telefono: telefonoCliente,
-            p_direccion: formData.direccion.trim(),
-            p_monto: Number(formData.valor),
-            p_domicilio_id: domicilioCreado.id,
-          },
-        );
-
-        if (pendienteError) {
-          console.error("========== ERROR PENDIENTE ==========");
-          console.error("ERROR COMPLETO:", pendienteError);
-          console.error("CODE:", pendienteError.code);
-          console.error("MESSAGE:", pendienteError.message);
-          console.error("DETAILS:", pendienteError.details);
-          console.error("HINT:", pendienteError.hint);
-          console.error("====================================");
-
-          await Swal.fire({
-            icon: "warning",
-            title: "Domicilio guardado",
-            text: "El domicilio se guardó, pero no se pudo registrar la deuda.",
-            confirmButtonColor: "#2563eb",
-          });
-
-          return;
-        }
-      }
-
       // ==========================================
       // ÉXITO
       // ==========================================
@@ -617,7 +710,10 @@ export default function DomiciliarioDashboard() {
       await Swal.fire({
         icon: "success",
         title: "Domicilio guardado",
-        text: "El domicilio fue registrado correctamente.",
+        text:
+          estadoForzado === "Reportado"
+            ? "El domicilio fue registrado como reportado."
+            : "El domicilio fue registrado y quedó En camino.",
         confirmButtonColor: "#2563eb",
       });
 
@@ -637,7 +733,6 @@ export default function DomiciliarioDashboard() {
         telefono: "",
         valor: "",
         propina: "",
-        metodo_pago: "",
         observaciones: "",
       });
 
@@ -664,6 +759,11 @@ export default function DomiciliarioDashboard() {
       setGuardandoDomicilio(false);
     }
   };
+  const obtenerNombreOrganizacionOrigen = (id) => {
+    const organizacion = organizaciones.find((item) => item.id === id);
+    return organizacion?.nombre || "Sin origen";
+  };
+
   const cargarDomicilios = async (organizacionId) => {
     if (!usuario?.id || !organizacionId) {
       return;
@@ -718,10 +818,6 @@ export default function DomiciliarioDashboard() {
       console.log("========== CARGANDO ORGANIZACIONES ==========");
       console.log("USUARIO:", usuario.id);
 
-      // ==========================================
-      // 1. OBTENER DATOS DEL USUARIO
-      // ==========================================
-
       const { data: usuarioActual, error: usuarioError } = await supabase
         .from("usuarios")
         .select("id, nombre, rol, organizacion_id")
@@ -730,168 +826,243 @@ export default function DomiciliarioDashboard() {
 
       if (usuarioError) {
         console.error("Error obteniendo usuario:", usuarioError);
-
         setOrganizaciones([]);
         setOrganizacionSeleccionada("");
         return;
       }
 
-      console.log("USUARIO ACTUAL:", usuarioActual);
+      // =====================================================
+      // ORGANIZACIONES REALMENTE ASIGNADAS AL USUARIO
+      // =====================================================
+      // No se deben mostrar todas las organizaciones de la principal.
+      // El acceso debe depender de una asignación directa o de una
+      // relación activa en usuarios_organizaciones.
+      const ids = new Set();
 
-      // ==========================================
-      // 2. RESOLVER ORGANIZACIÓN BASE
-      // ==========================================
+      if (usuarioActual?.organizacion_id) {
+        ids.add(usuarioActual.organizacion_id);
+      }
 
-      let organizacionBaseId = usuarioActual?.organizacion_id;
+      const { data: vinculaciones, error: vinculacionesError } = await supabase
+        .from("usuarios_organizaciones")
+        .select("organizacion_id, rol, estado")
+        .eq("usuario_id", usuario.id)
+        .eq("estado", "activo");
 
-      // Si no tiene organización directa,
-      // buscar mediante usuarios_organizaciones.
-      if (!organizacionBaseId) {
-        const { data: relacionUsuario, error: relacionError } = await supabase
-          .from("usuarios_organizaciones")
-          .select("organizacion_id")
-          .eq("usuario_id", usuario.id)
-          .eq("estado", "activo")
-          .order("id", { ascending: true })
-          .limit(1)
-          .maybeSingle();
+      if (vinculacionesError) {
+        console.error(
+          "Error obteniendo organizaciones vinculadas:",
+          vinculacionesError,
+        );
+        setOrganizaciones([]);
+        setOrganizacionSeleccionada("");
+        return;
+      }
 
-        if (relacionError) {
-          console.error(
-            "Error obteniendo relación del usuario:",
-            relacionError,
-          );
-
-          setOrganizaciones([]);
-          setOrganizacionSeleccionada("");
-          return;
+      (vinculaciones || []).forEach((relacion) => {
+        if (relacion.organizacion_id) {
+          ids.add(relacion.organizacion_id);
         }
+      });
 
-        organizacionBaseId = relacionUsuario?.organizacion_id;
-      }
+      const idsArray = [...ids];
 
-      console.log("ORGANIZACIÓN BASE:", organizacionBaseId);
-
-      if (!organizacionBaseId) {
-        console.error("No se pudo determinar la organización del usuario.");
-
+      if (!idsArray.length) {
+        console.error("El usuario no tiene organizaciones asignadas.");
         setOrganizaciones([]);
         setOrganizacionSeleccionada("");
         return;
       }
 
-      // ==========================================
-      // 3. OBTENER ORGANIZACIÓN BASE
-      // ==========================================
-
-      const { data: organizacionBase, error: organizacionBaseError } =
+      const { data: organizacionesAsignadas, error: organizacionesError } =
         await supabase
           .from("organizaciones")
           .select("id, nombre, estado, organizacion_principal_id")
-          .eq("id", organizacionBaseId)
-          .maybeSingle();
+          .in("id", idsArray)
+          .eq("estado", "activa")
+          .order("nombre", { ascending: true });
 
-      if (organizacionBaseError) {
+      if (organizacionesError) {
         console.error(
-          "Error obteniendo organización base:",
-          organizacionBaseError,
+          "Error obteniendo organizaciones asignadas:",
+          organizacionesError,
         );
-
         setOrganizaciones([]);
         setOrganizacionSeleccionada("");
         return;
       }
 
-      if (!organizacionBase) {
-        console.error("No se encontró la organización base.");
-
-        setOrganizaciones([]);
-        setOrganizacionSeleccionada("");
-        return;
-      }
-
-      console.log("ORGANIZACIÓN BASE ENCONTRADA:", organizacionBase);
-
-      // ==========================================
-      // 4. DETERMINAR ORGANIZACIÓN PRINCIPAL
-      // ==========================================
-
-      const organizacionPrincipalId =
-        organizacionBase.organizacion_principal_id || organizacionBase.id;
-
-      console.log("ORGANIZACIÓN PRINCIPAL:", organizacionPrincipalId);
-
-      // ==========================================
-      // 5. OBTENER ORGANIZACIONES DE ESA PRINCIPAL
-      // ==========================================
-
-      const { data: organizacionesHijas, error: hijasError } = await supabase
-        .from("organizaciones")
-        .select("id, nombre, estado, organizacion_principal_id")
-        .eq("organizacion_principal_id", organizacionPrincipalId)
-        .eq("estado", "activa")
-        .order("nombre", { ascending: true });
-
-      if (hijasError) {
-        console.error("Error obteniendo organizaciones:", hijasError);
-
-        setOrganizaciones([]);
-        setOrganizacionSeleccionada("");
-        return;
-      }
-
-      // ==========================================
-      // 6. ASEGURAR QUE LA ORGANIZACIÓN BASE
-      //    ESTÉ INCLUIDA
-      // ==========================================
-
-      let organizacionesDisponibles = organizacionesHijas || [];
-
-      const baseYaExiste = organizacionesDisponibles.some(
-        (organizacion) => organizacion.id === organizacionBase.id,
-      );
-
-      if (organizacionBase.estado === "activa" && !baseYaExiste) {
-        organizacionesDisponibles = [
-          organizacionBase,
-          ...organizacionesDisponibles,
-        ];
-      }
-
-      console.log("ORGANIZACIONES DISPONIBLES:", organizacionesDisponibles);
-
-      // ==========================================
-      // 7. GUARDAR ORGANIZACIONES
-      // ==========================================
+      const organizacionesDisponibles = organizacionesAsignadas || [];
 
       setOrganizaciones(organizacionesDisponibles);
 
-      // ==========================================
-      // 8. SELECCIONAR ORGANIZACIÓN
-      // ==========================================
-
-      if (organizacionesDisponibles.length === 1) {
-        setOrganizacionSeleccionada(organizacionesDisponibles[0].id);
-      } else if (
+      // Mantener la organización actual si sigue disponible.
+      if (
+        organizacionSeleccionada &&
         organizacionesDisponibles.some(
-          (organizacion) => organizacion.id === organizacionBase.id,
+          (organizacion) => organizacion.id === organizacionSeleccionada,
         )
       ) {
-        // Si hay varias, seleccionar la organización
-        // propia del usuario.
-        setOrganizacionSeleccionada(organizacionBase.id);
+        return;
+      }
+
+      if (
+        usuarioActual?.organizacion_id &&
+        organizacionesDisponibles.some(
+          (organizacion) => organizacion.id === usuarioActual.organizacion_id,
+        )
+      ) {
+        setOrganizacionSeleccionada(usuarioActual.organizacion_id);
+      } else if (organizacionesDisponibles.length === 1) {
+        setOrganizacionSeleccionada(organizacionesDisponibles[0].id);
       } else {
         setOrganizacionSeleccionada("");
       }
 
-      console.log("ORGANIZACIÓN SELECCIONADA:", organizacionBase.id);
-
-      console.log("============================================");
+      console.log("ORGANIZACIONES ASIGNADAS:", organizacionesDisponibles);
     } catch (error) {
       console.error("Error inesperado cargando organizaciones:", error);
-
       setOrganizaciones([]);
       setOrganizacionSeleccionada("");
+    }
+  };
+
+  // =====================================================
+  // CONFIGURACIÓN DE JORNADA POR ORGANIZACIÓN
+  // =====================================================
+
+  const evaluarJornada = async (organizacionId) => {
+    if (!organizacionId) {
+      setCierreAutomaticoMinutos(null);
+      setJornadaFinalizada(false);
+      setCargandoConfiguracionJornada(false);
+      return;
+    }
+
+    setCargandoConfiguracionJornada(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("configuraciones_organizacion")
+        .select(
+          "horario_activo, hora_inicio, hora_fin, dias_trabajo, meses_trabajo, cierre_automatico_minutos",
+        )
+        .eq("organizacion_id", organizacionId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      // Sin configuración: permitir el comportamiento normal y mostrar
+      // el cierre manual.
+      if (!data) {
+        setCierreAutomaticoMinutos(null);
+        setJornadaFinalizada(false);
+        return;
+      }
+
+      const autoMinutos =
+        data.cierre_automatico_minutos === null ||
+        data.cierre_automatico_minutos === undefined
+          ? null
+          : Number(data.cierre_automatico_minutos);
+
+      setCierreAutomaticoMinutos(autoMinutos);
+
+      if (data.horario_activo === false) {
+        setJornadaFinalizada(false);
+        return;
+      }
+
+      const ahora = new Date();
+
+      const partes = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Bogota",
+        weekday: "long",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(ahora);
+
+      const obtenerParte = (tipo) =>
+        partes.find((parte) => parte.type === tipo)?.value || "";
+
+      const mapaDias = {
+        Monday: "lunes",
+        Tuesday: "martes",
+        Wednesday: "miercoles",
+        Thursday: "jueves",
+        Friday: "viernes",
+        Saturday: "sabado",
+        Sunday: "domingo",
+      };
+
+      const mapaMeses = {
+        January: "enero",
+        February: "febrero",
+        March: "marzo",
+        April: "abril",
+        May: "mayo",
+        June: "junio",
+        July: "julio",
+        August: "agosto",
+        September: "septiembre",
+        October: "octubre",
+        November: "noviembre",
+        December: "diciembre",
+      };
+
+      const diaActual = mapaDias[obtenerParte("weekday")];
+      const mesActual = mapaMeses[obtenerParte("month")];
+
+      const diasTrabajo = data.dias_trabajo || {};
+      const mesesTrabajo = data.meses_trabajo || {};
+
+      if (diaActual && diasTrabajo[diaActual] === false) {
+        setJornadaFinalizada(true);
+        return;
+      }
+
+      if (mesActual && mesesTrabajo[mesActual] === false) {
+        setJornadaFinalizada(true);
+        return;
+      }
+
+      const horaActual = Number(obtenerParte("hour"));
+      const minutoActual = Number(obtenerParte("minute"));
+      const minutosActuales = horaActual * 60 + minutoActual;
+
+      const [inicioH = 0, inicioM = 0] = String(data.hora_inicio || "08:00")
+        .slice(0, 5)
+        .split(":")
+        .map(Number);
+
+      const [finH = 18, finM = 0] = String(data.hora_fin || "18:00")
+        .slice(0, 5)
+        .split(":")
+        .map(Number);
+
+      const minutosInicio = inicioH * 60 + inicioM;
+      const minutosFin = finH * 60 + finM;
+
+      // Con cierre automático, la jornada termina después de la tolerancia.
+      // Sin cierre automático, termina exactamente en hora_fin.
+      const minutosLimite =
+        minutosFin + (autoMinutos === null ? 0 : autoMinutos);
+
+      setJornadaFinalizada(
+        minutosActuales < minutosInicio || minutosActuales >= minutosLimite,
+      );
+    } catch (error) {
+      console.error("Error evaluando la jornada:", error);
+      // En caso de error no bloqueamos por una decisión de frontend.
+      // El backend/RLS sigue siendo la autoridad.
+      setCierreAutomaticoMinutos(null);
+      setJornadaFinalizada(false);
+    } finally {
+      setCargandoConfiguracionJornada(false);
     }
   };
 
@@ -900,11 +1071,227 @@ export default function DomiciliarioDashboard() {
 
     cargarOrganizaciones();
   }, [usuario?.id]);
-  useEffect(() => {
-    if (!usuario?.id || !organizacionSeleccionada) return;
 
+  useEffect(() => {
+    if (!organizacionSeleccionada) {
+      setCierreAutomaticoMinutos(null);
+      setJornadaFinalizada(false);
+      setCargandoConfiguracionJornada(false);
+      setDomicilios([]);
+      return;
+    }
+
+    evaluarJornada(organizacionSeleccionada);
     cargarDomicilios(organizacionSeleccionada);
-  }, [usuario?.id, organizacionSeleccionada]);
+
+    const intervalo = window.setInterval(() => {
+      evaluarJornada(organizacionSeleccionada);
+    }, 60 * 1000);
+
+    return () => window.clearInterval(intervalo);
+  }, [organizacionSeleccionada]);
+
+  const entregarDomicilioEnCamino = async (domicilio) => {
+    if (!domicilio || domicilio.estado !== "En camino") return;
+
+    // ==========================================
+    // 1. CONFIRMAR ENTREGA
+    // ==========================================
+
+    const confirmacion = await Swal.fire({
+      icon: "question",
+      title: "¿Ya se entregó el domicilio?",
+      html: `
+      <div style="font-size: 14px; color: #64748b;">
+        <strong>${domicilio.cliente}</strong><br/>
+        ${domicilio.direccion}
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Sí, ya se entregó",
+      cancelButtonText: "Todavía no",
+      confirmButtonColor: "#2563eb",
+      cancelButtonColor: "#64748b",
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    // ==========================================
+    // 2. SELECCIONAR MÉTODO DE PAGO
+    // ==========================================
+
+    const metodoPago = await Swal.fire({
+      icon: "info",
+      title: "Método de pago",
+      text: "Selecciona cómo pagó el cliente.",
+      input: "select",
+      inputOptions: {
+        Efectivo: "Efectivo",
+        Transferencia: "Transferencia",
+        Datáfono: "Datáfono",
+        Otro: "Otro",
+      },
+      inputPlaceholder: "Selecciona un método",
+      showCancelButton: true,
+      confirmButtonText: "Continuar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#2563eb",
+      cancelButtonColor: "#64748b",
+      inputValidator: (value) => {
+        if (!value) {
+          return "Debes seleccionar un método de pago.";
+        }
+      },
+    });
+
+    if (!metodoPago.isConfirmed) return;
+
+    const metodoSeleccionado = metodoPago.value;
+
+    // ==========================================
+    // 3. SI ES TRANSFERENCIA → PREGUNTAR POR
+    //    EL COMPROBANTE ANTES DE ACTUALIZAR
+    // ==========================================
+
+    if (metodoSeleccionado === "Transferencia") {
+      const comprobante = await Swal.fire({
+        icon: "question",
+        title: "¿Deseas subir el comprobante?",
+        text: "Puedes tomar una foto o seleccionar una imagen de la galería.",
+        showCancelButton: true,
+        confirmButtonText: "Sí, subir comprobante",
+        cancelButtonText: "Ahora no",
+        confirmButtonColor: "#2563eb",
+        cancelButtonColor: "#64748b",
+      });
+
+      if (comprobante.isConfirmed) {
+        // Guardamos temporalmente la entrega.
+        setEntregaPendienteComprobante({
+          domicilio,
+          metodoPago: metodoSeleccionado,
+        });
+
+        setDomicilioSeleccionado(domicilio);
+
+        // Abrimos las opciones de cámara / galería.
+        setMostrarComprobante(true);
+
+        // IMPORTANTE:
+        // Aquí paramos la función.
+        // La continuación se hará cuando termine tomarFoto().
+        return;
+      }
+    }
+
+    // ==========================================
+    // 4. SI NO HAY COMPROBANTE,
+    //    FINALIZAMOS DIRECTAMENTE
+    // ==========================================
+
+    await finalizarEntregaDomicilio(domicilio, metodoSeleccionado);
+  };
+  const finalizarEntregaDomicilio = async (domicilio, metodoSeleccionado) => {
+    const nuevoEstado =
+      metodoSeleccionado === "Otro" ? "Pendiente" : "Entregado";
+
+    // ==========================================
+    // ACTUALIZAR DOMICILIO
+    // ==========================================
+
+    const { data: domicilioActualizado, error } = await supabase
+      .from("domicilios")
+      .update({
+        metodo_pago: metodoSeleccionado,
+        estado: nuevoEstado,
+      })
+      .eq("id", domicilio.id)
+      .eq("organizacion_id", organizacionSeleccionada)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error actualizando entrega:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo actualizar el estado del domicilio.",
+        confirmButtonColor: "#2563eb",
+      });
+
+      return;
+    }
+
+    // ==========================================
+    // SI ES "OTRO" → CREAR PENDIENTE
+    // ==========================================
+
+    if (metodoSeleccionado === "Otro") {
+      const { error: pendienteError } = await supabase.rpc(
+        "crear_o_acumular_pendiente",
+        {
+          p_cliente: domicilio.cliente,
+          p_telefono: domicilio.telefono,
+          p_direccion: domicilio.direccion,
+          p_monto: Number(domicilio.costo),
+          p_domicilio_id: domicilio.id,
+        },
+      );
+
+      if (pendienteError) {
+        console.error(
+          "Error creando pendiente después de entregar:",
+          pendienteError,
+        );
+      }
+    }
+
+    // ==========================================
+    // REGISTRAR ACTIVIDAD
+    // ==========================================
+
+    await registrarActividadYNotificar({
+      usuarioId: usuario.id,
+      tipo: "domicilio",
+      accion: "entregar",
+      descripcion: `Entregó el domicilio del cliente ${domicilio.cliente}. Método de pago: ${metodoSeleccionado}. Estado: ${nuevoEstado}.`,
+      referenciaId: domicilio.id,
+      organizacionId: organizacionSeleccionada,
+    });
+
+    // ==========================================
+    // ACTUALIZAR PANTALLA
+    // ==========================================
+
+    setDomicilioSeleccionado(domicilioActualizado);
+
+    setDomicilios((prev) =>
+      prev.map((item) =>
+        item.id === domicilioActualizado.id ? domicilioActualizado : item,
+      ),
+    );
+
+    // ==========================================
+    // ALERTA FINAL
+    // ==========================================
+
+    await Swal.fire({
+      icon: "success",
+      title: "Domicilio entregado",
+      html: `
+      <div style="font-size: 14px; color: #64748b;">
+        <strong>${domicilio.cliente}</strong><br/><br/>
+        Método de pago:
+        <strong>${metodoSeleccionado}</strong><br/>
+        Estado:
+        <strong>${nuevoEstado}</strong>
+      </div>
+    `,
+      confirmButtonText: "Aceptar",
+      confirmButtonColor: "#2563eb",
+    });
+  };
   const puedeReportar = (domicilio) => {
     if (!domicilio) return false;
 
@@ -951,7 +1338,6 @@ export default function DomiciliarioDashboard() {
 
     setReporteData({
       motivo: "",
-      metodo_pago: "",
       observaciones: "",
     });
 
@@ -1494,13 +1880,26 @@ export default function DomiciliarioDashboard() {
 
     console.log("URL pública:", data.publicUrl);
 
-    Swal.fire({
+    await Swal.fire({
       icon: "success",
       title: "Comprobante subido",
       text: "La foto fue subida correctamente",
+      confirmButtonColor: "#2563eb",
     });
 
     e.target.value = "";
+
+    // ==========================================
+    // FINALIZAR ENTREGA DESPUÉS DEL COMPROBANTE
+    // ==========================================
+
+    if (entregaPendienteComprobante) {
+      const { domicilio, metodoPago } = entregaPendienteComprobante;
+
+      setEntregaPendienteComprobante(null);
+
+      await finalizarEntregaDomicilio(domicilio, metodoPago);
+    }
   };
   const iniciarEdicionDomicilio = (domicilio) => {
     if (domicilio.estado === "Cancelado") return;
@@ -1577,6 +1976,7 @@ export default function DomiciliarioDashboard() {
 
   const solucionarDomicilioReportado = async () => {
     if (!domicilioSeleccionado) return;
+
     if (!metodoPagoSolucion) {
       Swal.fire({
         icon: "warning",
@@ -1590,69 +1990,18 @@ export default function DomiciliarioDashboard() {
 
       return;
     }
-    if (!claveSolucion.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Clave requerida",
-        text: "Ingresa la clave dinámica del administrador.",
-        customClass: {
-          container: styles.swalSobreModal,
-        },
-      });
-
-      return;
-    }
-
-    setValidandoClave(true);
-
-    const { data, error } = await supabase.rpc(
-      "validar_y_consumir_clave_edicion",
-      {
-        p_clave: claveSolucion.trim(),
-        p_organizacion_id: organizacionSeleccionada,
-      },
-    );
-
-    setValidandoClave(false);
-
-    if (error) {
-      console.error("Error validando clave:", error);
-
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "No se pudo validar la clave dinámica.",
-        customClass: {
-          container: styles.swalSobreModal,
-        },
-      });
-
-      return;
-    }
-
-    if (!data?.valida) {
-      Swal.fire({
-        icon: "error",
-        title: "Clave no válida",
-        text:
-          data?.mensaje ||
-          "La clave es incorrecta, ya fue utilizada o ha expirado.",
-        customClass: {
-          container: styles.swalSobreModal,
-        },
-      });
-
-      return;
-    }
 
     const estadoAnterior = domicilioSeleccionado.estado;
+
+    const nuevoEstado =
+      metodoPagoSolucion === "Otro" ? "Pendiente" : "Entregado";
 
     const { data: domicilioActualizado, error: errorActualizacion } =
       await supabase
         .from("domicilios")
         .update({
           metodo_pago: metodoPagoSolucion,
-          estado: metodoPagoSolucion === "Otro" ? "Pendiente" : "Entregado",
+          estado: nuevoEstado,
         })
         .eq("id", domicilioSeleccionado.id)
         .select()
@@ -1664,11 +2013,12 @@ export default function DomiciliarioDashboard() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "La clave fue validada, pero no se pudo actualizar el domicilio.",
+        text: "No se pudo actualizar el domicilio.",
       });
 
       return;
     }
+
     // ==========================================
     // MARCAR REPORTE COMO SOLUCIONADO
     // ==========================================
@@ -1691,7 +2041,6 @@ export default function DomiciliarioDashboard() {
 
     setDomicilioSeleccionado(null);
     setModalSolucionReportado(false);
-    setClaveSolucion("");
     setMetodoPagoSolucion("");
 
     Swal.fire({
@@ -1711,6 +2060,11 @@ export default function DomiciliarioDashboard() {
       direccion: domicilioSeleccionado.direccion || "",
       costo: domicilioSeleccionado.costo || "",
       metodo_pago: domicilioSeleccionado.metodo_pago || "Efectivo",
+      estado: domicilioSeleccionado.estado || "Pendiente",
+      organizacion_origen_id:
+        domicilioSeleccionado.organizacion_origen_id ||
+        organizacionSeleccionada ||
+        "",
     });
 
     setModalEditarDomicilio(true);
@@ -1781,6 +2135,29 @@ export default function DomiciliarioDashboard() {
       return;
     }
 
+    const { data: domicilioConOrigen, error: errorOrigen } = await supabase
+      .from("domicilios")
+      .update({
+        organizacion_origen_id:
+          datosEdicion.organizacion_origen_id || organizacionSeleccionada,
+      })
+      .eq("id", domicilioSeleccionado.id)
+      .eq("organizacion_id", organizacionSeleccionada)
+      .select()
+      .single();
+
+    if (errorOrigen) {
+      console.error("Error actualizando origen del domicilio:", errorOrigen);
+      setEditandoDomicilio(false);
+
+      Swal.fire({
+        icon: "error",
+        title: "No se pudo actualizar el origen",
+        text: "El domicilio se actualizó, pero no fue posible guardar de dónde salió.",
+      });
+      return;
+    }
+
     // ==========================================
     // REGISTRAR ACTIVIDAD
     // ==========================================
@@ -1799,10 +2176,12 @@ export default function DomiciliarioDashboard() {
     // ==========================================
 
     setDomicilios((prev) =>
-      prev.map((domicilio) => (domicilio.id === data.id ? data : domicilio)),
+      prev.map((domicilio) =>
+        domicilio.id === domicilioConOrigen.id ? domicilioConOrigen : domicilio,
+      ),
     );
 
-    setDomicilioSeleccionado(data);
+    setDomicilioSeleccionado(domicilioConOrigen);
     setEditandoDomicilio(false);
     setModalEditarDomicilio(false);
 
@@ -1813,6 +2192,40 @@ export default function DomiciliarioDashboard() {
       timer: 1800,
       showConfirmButton: false,
     });
+  };
+
+  const abrirSolucionReporte = async (domicilio) => {
+    if (!domicilio || domicilio.estado !== "Reportado") return;
+
+    const { data: reporte, error } = await supabase
+      .from("reportes")
+      .select("descripcion")
+      .eq("domicilio_id", domicilio.id)
+      .eq("estado", "Pendiente")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error obteniendo reporte:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo obtener la información del reporte.",
+        confirmButtonColor: "#2563eb",
+      });
+
+      return;
+    }
+
+    setDomicilioSeleccionado({
+      ...domicilio,
+      reporte_descripcion: reporte?.descripcion || "Problema reportado",
+    });
+
+    setMetodoPagoSolucion("");
+    setModalSolucionReportado(true);
   };
   return (
     <div
@@ -1945,24 +2358,27 @@ export default function DomiciliarioDashboard() {
         </nav>
 
         <div className={styles.lqSidebarFooter}>
-          <button
-            className={styles.lqCloseDay}
-            onClick={() => {
-              if (!organizacionSeleccionada) {
-                Swal.fire({
-                  icon: "warning",
-                  title: "Selecciona una organización",
-                  text: "Debes seleccionar una organización antes de cerrar el día.",
-                });
-                return;
-              }
+          {!cargandoConfiguracionJornada &&
+            cierreAutomaticoMinutos === null && (
+              <button
+                className={styles.lqCloseDay}
+                onClick={() => {
+                  if (!organizacionSeleccionada) {
+                    Swal.fire({
+                      icon: "warning",
+                      title: "Selecciona una organización",
+                      text: "Debes seleccionar una organización antes de cerrar el día.",
+                    });
+                    return;
+                  }
 
-              setModalCerrarDia(true);
-            }}
-          >
-            <ClipboardDocumentCheckIcon />
-            Cerrar Día
-          </button>
+                  setModalCerrarDia(true);
+                }}
+              >
+                <ClipboardDocumentCheckIcon />
+                Cerrar Día
+              </button>
+            )}
 
           <button className={styles.lqLogout} onClick={cerrarSesion}>
             <ArrowLeftOnRectangleIcon className={styles.lqIcon} />
@@ -2180,11 +2596,12 @@ export default function DomiciliarioDashboard() {
                     onChange={(e) => {
                       const organizacionId = e.target.value;
 
+                      setCargandoConfiguracionJornada(true);
+                      setCierreAutomaticoMinutos(null);
+                      setJornadaFinalizada(false);
                       setOrganizacionSeleccionada(organizacionId);
 
-                      if (organizacionId) {
-                        cargarDomicilios(organizacionId);
-                      } else {
+                      if (!organizacionId) {
                         setDomicilios([]);
                       }
                     }}
@@ -2196,26 +2613,6 @@ export default function DomiciliarioDashboard() {
                         {organizacion.nombre}
                       </option>
                     ))}
-                  </select>
-                  <select
-                    value={formData.metodo_pago}
-                    className={
-                      submitted && !formData.metodo_pago
-                        ? styles.lqInputError
-                        : ""
-                    }
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        metodo_pago: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">Seleccione método de pago</option>
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Transferencia">Transferencia</option>
-                    <option value="Datáfono">Datáfono</option>
-                    <option value="Otro">Otro</option>
                   </select>
 
                   <textarea
@@ -2256,6 +2653,7 @@ export default function DomiciliarioDashboard() {
                         <th>Cliente</th>
                         <th>Teléfono</th>
                         <th>Dirección</th>
+                        <th>Origen</th>
                         <th>Valor</th>
                         <th>Método Pago</th>
                         <th>Estado</th>
@@ -2265,47 +2663,7 @@ export default function DomiciliarioDashboard() {
 
                     <tbody>
                       {domicilios.map((domicilio) => (
-                        <tr
-                          key={domicilio.id}
-                          onClick={async () => {
-                            if (domicilio.estado !== "Reportado") return;
-
-                            const { data: reporte, error } = await supabase
-                              .from("reportes")
-                              .select("descripcion")
-                              .eq("domicilio_id", domicilio.id)
-                              .eq("estado", "Pendiente")
-                              .order("created_at", { ascending: false })
-                              .limit(1)
-                              .maybeSingle();
-
-                            if (error) {
-                              console.error("Error obteniendo reporte:", error);
-
-                              Swal.fire({
-                                icon: "error",
-                                title: "Error",
-                                text: "No se pudo obtener la información del reporte.",
-                              });
-
-                              return;
-                            }
-                            setDomicilioSeleccionado({
-                              ...domicilio,
-                              reporte_descripcion:
-                                reporte?.descripcion || "Problema reportado",
-                            });
-
-                            setMetodoPagoSolucion("");
-                            setModalSolucionReportado(true);
-                          }}
-                          style={{
-                            cursor:
-                              domicilio.estado === "Reportado"
-                                ? "pointer"
-                                : "default",
-                          }}
-                        >
+                        <tr key={domicilio.id}>
                           <td>{domicilio.numero_factura}</td>
 
                           <td>{domicilio.cliente}</td>
@@ -2313,6 +2671,12 @@ export default function DomiciliarioDashboard() {
                           <td>{domicilio.telefono}</td>
 
                           <td>{domicilio.direccion}</td>
+
+                          <td>
+                            {obtenerNombreOrganizacionOrigen(
+                              domicilio.organizacion_origen_id,
+                            )}
+                          </td>
 
                           <td>
                             ${Number(domicilio.costo).toLocaleString("es-CO")}
@@ -2323,14 +2687,36 @@ export default function DomiciliarioDashboard() {
                           <td>
                             <span
                               className={
-                                domicilio.estado === "Pagado"
-                                  ? styles.lqEstadoPagado
-                                  : domicilio.estado === "Cancelado"
-                                    ? styles.lqEstadoCancelado
-                                    : domicilio.estado === "Reportado"
-                                      ? styles.lqEstadoReportado
-                                      : styles.lqEstadoPendiente
+                                domicilio.estado === "En camino"
+                                  ? styles.lqEstadoEnCamino
+                                  : domicilio.estado === "Pagado"
+                                    ? styles.lqEstadoPagado
+                                    : domicilio.estado === "Cancelado"
+                                      ? styles.lqEstadoCancelado
+                                      : domicilio.estado === "Reportado"
+                                        ? styles.lqEstadoReportado
+                                        : styles.lqEstadoPendiente
                               }
+                              onClick={(e) => {
+                                e.stopPropagation();
+
+                                if (domicilio.estado === "En camino") {
+                                  entregarDomicilioEnCamino(domicilio);
+                                  return;
+                                }
+
+                                if (domicilio.estado === "Reportado") {
+                                  abrirSolucionReporte(domicilio);
+                                  return;
+                                }
+                              }}
+                              style={{
+                                cursor:
+                                  domicilio.estado === "En camino" ||
+                                  domicilio.estado === "Reportado"
+                                    ? "pointer"
+                                    : "default",
+                              }}
                             >
                               {domicilio.estado}
                             </span>
@@ -2781,6 +3167,19 @@ export default function DomiciliarioDashboard() {
                     disabled={editandoDomicilio}
                   />
                 </div>
+
+                <div className={styles.lqEditField}>
+                  <label>Salió desde</label>
+
+                  <input
+                    type="text"
+                    value={obtenerNombreOrganizacionOrigen(
+                      datosEdicion.organizacion_origen_id ||
+                        organizacionSeleccionada,
+                    )}
+                    disabled
+                  />
+                </div>
               </div>
 
               {/* INFORMACIÓN DEL DOMICILIO */}
@@ -2846,7 +3245,6 @@ export default function DomiciliarioDashboard() {
                 onClick={() => {
                   setModalSolucionReportado(false);
                   setDomicilioSeleccionado(null);
-                  setClaveSolucion("");
                 }}
               >
                 <XMarkIcon />
@@ -2869,17 +3267,6 @@ export default function DomiciliarioDashboard() {
                   <span>Teléfono</span>
                   <strong>{domicilioSeleccionado.telefono}</strong>
                 </div>
-              </div>
-
-              <div className={styles.lqEditField}>
-                <label>Clave dinámica</label>
-
-                <input
-                  type="password"
-                  value={claveSolucion}
-                  onChange={(e) => setClaveSolucion(e.target.value)}
-                  placeholder="Ingresa la clave"
-                />
               </div>
 
               <div className={styles.lqEditField}>
@@ -2915,7 +3302,7 @@ export default function DomiciliarioDashboard() {
                 onClick={() => {
                   setModalSolucionReportado(false);
                   setDomicilioSeleccionado(null);
-                  setClaveSolucion("");
+                  setMetodoPagoSolucion("");
                 }}
               >
                 Cancelar
@@ -2925,9 +3312,8 @@ export default function DomiciliarioDashboard() {
                 type="button"
                 className={styles.lqEditSave}
                 onClick={solucionarDomicilioReportado}
-                disabled={validandoClave}
               >
-                {validandoClave ? "Validando..." : "Solucionar domicilio"}
+                Solucionar domicilio
               </button>
             </div>
           </div>

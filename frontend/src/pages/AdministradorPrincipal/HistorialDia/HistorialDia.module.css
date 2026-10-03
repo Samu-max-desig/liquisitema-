@@ -282,13 +282,15 @@
   border-radius: 999px;
 
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .historialDiaEstado > span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .historialDiaEstadoPagado {
@@ -482,5 +484,546 @@
 
   .historialDiaFechaControl {
     width: 100%;
+  }
+}
+
+
+/* CABECERA DE MOVIMIENTOS */
+
+.historialDiaPanelAcciones {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.historialDiaPanelAcciones > svg {
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+}
+
+.historialDiaNuevoButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 13px;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  background: #2563eb;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.historialDiaNuevoButton svg {
+  width: 17px;
+  height: 17px;
+}
+
+.historialDiaNuevoButton:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* MÉTODOS DE PAGO */
+
+.historialDiaMetodo {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.historialDiaMetodoEfectivo {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.historialDiaMetodoTransferencia {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.historialDiaMetodoDatafono {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.historialDiaMetodoOtro {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+/* ACCIONES DE LA TABLA */
+
+.historialDiaAcciones {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.historialDiaEditarButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.historialDiaEditarButton svg {
+  width: 17px;
+  height: 17px;
+}
+
+.historialDiaEditarButton:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+/* MODAL */
+
+.historialDiaModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.historialDiaModal {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.historialDiaModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.historialDiaModalHeader h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.historialDiaModalHeader p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.historialDiaModalCerrar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid #dbe3ed;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.historialDiaModalCerrar svg {
+  width: 20px;
+  height: 20px;
+}
+
+.historialDiaModalCerrar:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.historialDiaForm {
+  padding: 22px 24px 24px;
+}
+
+.historialDiaFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.historialDiaFormGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.historialDiaFormGrid label > span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.historialDiaFormGrid input,
+.historialDiaFormGrid select,
+.historialDiaFormGrid textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dbe3ed;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.historialDiaFormGrid input,
+.historialDiaFormGrid select {
+  height: 42px;
+  padding: 0 12px;
+}
+
+.historialDiaFormGrid textarea {
+  min-height: 82px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.historialDiaFormGrid input:focus,
+.historialDiaFormGrid select:focus,
+.historialDiaFormGrid textarea:focus {
+  border-color: #93b4e8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.historialDiaFormFull {
+  grid-column: 1 / -1;
+}
+
+.historialDiaModalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #edf1f5;
+}
+
+.historialDiaCancelarButton,
+.historialDiaGuardarButton {
+  min-height: 42px;
+  padding: 0 17px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.historialDiaCancelarButton {
+  border: 1px solid #dbe3ed;
+  background: #ffffff;
+  color: #475569;
+}
+
+.historialDiaCancelarButton:hover {
+  background: #f8fafc;
+}
+
+.historialDiaGuardarButton {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.historialDiaGuardarButton:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.historialDiaCancelarButton:disabled,
+.historialDiaGuardarButton:disabled,
+.historialDiaModalCerrar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 650px) {
+  .historialDiaPanelAcciones {
+    align-items: flex-end;
+  }
+
+  .historialDiaFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .historialDiaFormFull {
+    grid-column: auto;
+  }
+
+  .historialDiaModalOverlay {
+    padding: 12px;
+  }
+
+  .historialDiaModalHeader,
+  .historialDiaForm {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+
+.historialDiaOrigen {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* BUSCADOR DE CLIENTES DEL NUEVO DOMICILIO */
+
+.historialDiaClienteCampo {
+  position: relative;
+}
+
+.historialDiaClienteBuscador {
+  position: relative;
+  width: 100%;
+}
+
+.historialDiaClienteInputWrap {
+  position: relative;
+  width: 100%;
+}
+
+.historialDiaClienteInputWrap svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 18px;
+  height: 18px;
+  color: #94a3b8;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.historialDiaClienteInputWrap input {
+  padding-left: 38px !important;
+}
+
+.historialDiaClienteResultados {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  max-height: 245px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid #dbe3ed;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+}
+
+.historialDiaClienteResultado {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 10px 11px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #334155;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.historialDiaClienteResultado:hover {
+  background: #f8fafc;
+}
+
+.historialDiaClienteResultado strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.historialDiaClienteResultado span {
+  display: block;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.historialDiaClienteResultado small {
+  display: block;
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.historialDiaClienteResultadoVacio {
+  padding: 12px 11px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+
+/* BUSCADOR DE CLIENTES SUPERIOR - RESULTADOS EN FLUJO */
+.historialDiaClienteBusquedaSuperior {
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 14px;
+  border: 1px solid #dbe3ed;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.historialDiaClienteBusquedaTitulo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+
+.historialDiaClienteBusquedaTitulo > span {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.historialDiaClienteBusquedaTitulo > small {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.historialDiaClienteBusquedaSuperior .historialDiaClienteInputWrap {
+  width: 100%;
+}
+
+.historialDiaClienteBusquedaSuperior .historialDiaClienteInputWrap input {
+  min-height: 44px;
+  padding-left: 40px !important;
+  background: #ffffff;
+}
+
+.historialDiaClienteResultadosFlujo {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 220px;
+  margin-top: 7px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid #dbe3ed;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.historialDiaClienteResultadosFlujo .historialDiaClienteResultado {
+  flex-shrink: 0;
+}
+
+.historialDiaClienteResultadosFlujo .historialDiaClienteResultadoVacio {
+  padding: 11px;
+}
+
+/* BUSCADOR SUPERIOR DEL MODAL - AJUSTE VISUAL */
+.historialDiaModal > .historialDiaClienteBuscador {
+  position: relative;
+  width: auto;
+  margin: 20px 24px 0;
+  padding: 14px;
+  border: 1px solid #dbe3ed;
+  border-radius: 12px;
+  background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.historialDiaModal > .historialDiaClienteBuscador .historialDiaClienteInputWrap {
+  position: relative;
+  width: 100%;
+}
+
+.historialDiaModal > .historialDiaClienteBuscador .historialDiaClienteInputWrap svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 18px;
+  height: 18px;
+  color: #94a3b8;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.historialDiaModal > .historialDiaClienteBuscador .historialDiaClienteInputWrap input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px 0 40px !important;
+  box-sizing: border-box;
+  border: 1px solid #dbe3ed;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.historialDiaModal > .historialDiaClienteBuscador .historialDiaClienteInputWrap input:focus {
+  border-color: #93b4e8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.historialDiaModal > .historialDiaClienteBuscador .historialDiaClienteResultados {
+  position: static;
+  width: 100%;
+  max-height: 220px;
+  margin-top: 7px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 650px) {
+  .historialDiaModal > .historialDiaClienteBuscador {
+    margin-left: 18px;
+    margin-right: 18px;
   }
 }

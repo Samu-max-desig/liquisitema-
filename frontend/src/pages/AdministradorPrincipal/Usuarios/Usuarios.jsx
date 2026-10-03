@@ -153,8 +153,7 @@ export default function Usuarios() {
     if (
       !usuarioEditando.nombre ||
       !usuarioEditando.documento ||
-      !usuarioEditando.correo ||
-      !usuarioEditando.rol
+      !usuarioEditando.correo
     ) {
       setMensaje({
         tipo: "error",
@@ -178,7 +177,6 @@ export default function Usuarios() {
         direccion: usuarioEditando.direccion || null,
         documento: usuarioEditando.documento,
         correo: usuarioEditando.correo,
-        rol: usuarioEditando.rol,
         estado: usuarioEditando.estado,
       })
       .eq("id", usuarioEditando.id);
@@ -207,8 +205,7 @@ export default function Usuarios() {
       usuarioOriginal?.telefono !== usuarioEditando.telefono ||
       usuarioOriginal?.direccion !== usuarioEditando.direccion ||
       usuarioOriginal?.documento !== usuarioEditando.documento ||
-      usuarioOriginal?.correo !== usuarioEditando.correo ||
-      usuarioOriginal?.rol !== usuarioEditando.rol;
+      usuarioOriginal?.correo !== usuarioEditando.correo;
 
     // ==========================================
     // REGISTRAR EDICIÓN DE INFORMACIÓN
@@ -819,7 +816,7 @@ export default function Usuarios() {
         direccion: nuevoUsuario.direccion,
         documento: nuevoUsuario.documento,
         correo: nuevoUsuario.correo,
-        rol: nuevoUsuario.rol,
+        rol: "domiciliario",
         estado: nuevoUsuario.estado,
         password: nuevoUsuario.password,
 
@@ -869,7 +866,7 @@ export default function Usuarios() {
     await registrarActividad({
       tipo: "usuario",
       accion: "crear",
-      descripcion: `Creó el usuario ${nuevoUsuario.nombre} con rol ${nuevoUsuario.rol}.`,
+      descripcion: `Creó el usuario ${nuevoUsuario.nombre} con rol domiciliario.`,
       referenciaId: null,
       organizacionId: organizacionActualId,
     });
@@ -1354,20 +1351,6 @@ export default function Usuarios() {
                 </div>
 
                 <div className={styles.usuariosCampo}>
-                  <label>Rol *</label>
-
-                  <select
-                    name="rol"
-                    value={nuevoUsuario.rol}
-                    onChange={manejarCambioUsuario}
-                  >
-                    <option value="domiciliario">Domiciliario</option>
-
-                    <option value="admin">Administrador</option>
-                  </select>
-                </div>
-
-                <div className={styles.usuariosCampo}>
                   <label>Estado *</label>
 
                   <select
@@ -1528,16 +1511,17 @@ export default function Usuarios() {
                 </div>
 
                 <div className={styles.usuariosCampo}>
-                  <label>Rol *</label>
+                  <label>Rol</label>
 
-                  <select
-                    name="rol"
-                    value={usuarioEditando.rol}
-                    onChange={manejarCambioEditar}
-                  >
-                    <option value="domiciliario">Domiciliario</option>
-                    <option value="admin">Administrador</option>
-                  </select>
+                  <input
+                    type="text"
+                    value={
+                      usuarioEditando.rol === "admin"
+                        ? "Administrador"
+                        : "Domiciliario"
+                    }
+                    disabled
+                  />
                 </div>
 
                 <div className={styles.usuariosCampo}>

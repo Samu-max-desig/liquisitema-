@@ -8,6 +8,7 @@ export default function PreferenciasTrabajo() {
   const [mensaje, setMensaje] = useState("");
 
   const [organizacionId, setOrganizacionId] = useState(null);
+  const [organizaciones, setOrganizaciones] = useState([]);
 
   // =====================================================
   // HORARIO
@@ -15,6 +16,10 @@ export default function PreferenciasTrabajo() {
 
   const [horaInicio, setHoraInicio] = useState("08:00");
   const [horaFin, setHoraFin] = useState("18:00");
+
+  // CIERRE AUTOMÁTICO
+  // null = desactivado, 15/30/60 = minutos después de la hora de cierre
+  const [cierreAutomaticoMinutos, setCierreAutomaticoMinutos] = useState(null);
 
   // =====================================================
   // DÍAS DE TRABAJO
@@ -54,10 +59,10 @@ export default function PreferenciasTrabajo() {
   // =====================================================
 
   // =====================================================
-  // OBTENER ORGANIZACIÓN DEL USUARIO ACTUAL
+  // ORGANIZACIONES DEL USUARIO
   // =====================================================
 
-  const obtenerOrganizacion = async () => {
+  const cargarOrganizaciones = async () => {
     const {
       data: { user },
       error: errorAuth,
@@ -67,10 +72,9 @@ export default function PreferenciasTrabajo() {
       throw new Error("No se pudo obtener la sesión actual.");
     }
 
-    // Primero: organización directa del usuario
     const { data: usuario, error: errorUsuario } = await supabase
       .from("usuarios")
-      .select("organizacion_id")
+      .select("id, organizacion_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -78,94 +82,176 @@ export default function PreferenciasTrabajo() {
       throw errorUsuario;
     }
 
+    const ids = new Set();
+
     if (usuario?.organizacion_id) {
-      return usuario.organizacion_id;
+      ids.add(usuario.organizacion_id);
     }
 
-    // Segundo: organización mediante usuarios_organizaciones
-    const { data: relacion, error: errorRelacion } = await supabase
+    const { data: vinculaciones, error: vinculacionesError } = await supabase
       .from("usuarios_organizaciones")
-      .select("organizacion_id")
+      .select("organizacion_id, rol, estado")
       .eq("usuario_id", user.id)
-      .eq("estado", "activo")
-      .order("id", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .eq("estado", "activo");
 
-    if (errorRelacion) {
-      throw errorRelacion;
+    if (vinculacionesError) {
+      throw vinculacionesError;
     }
 
-    if (!relacion?.organizacion_id) {
+    (vinculaciones || []).forEach((relacion) => {
+      if (relacion.organizacion_id && relacion.rol === "admin") {
+        ids.add(relacion.organizacion_id);
+      }
+    });
+
+    const idsArray = [...ids];
+
+    if (!idsArray.length) {
       throw new Error("El usuario no tiene una organización activa asignada.");
     }
 
-    return relacion.organizacion_id;
+    const { data, error } = await supabase
+      .from("organizaciones")
+      .select("id, nombre, estado")
+      .in("id", idsArray)
+      .eq("estado", "activa")
+      .order("nombre", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    const disponibles = data || [];
+
+    if (!disponibles.length) {
+      throw new Error(
+        "No hay organizaciones activas disponibles para configurar.",
+      );
+    }
+
+    setOrganizaciones(disponibles);
+
+    return disponibles;
   };
 
   // =====================================================
-  // CARGAR CONFIGURACIÓN
+  // CARGAR CONFIGURACIÓN DE UNA ORGANIZACIÓN
+  // =====================================================
+
+  const cargarConfiguracion = async (orgId) => {
+    if (!orgId) return;
+
+    setCargando(true);
+    setMensaje("");
+
+    try {
+      const { data, error } = await supabase
+        .from("configuraciones_organizacion")
+        .select(
+          `
+          hora_inicio,
+          hora_fin,
+          dias_trabajo,
+          meses_trabajo,
+          cierre_automatico_minutos
+        `,
+        )
+        .eq("organizacion_id", orgId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      // Restablecer valores antes de aplicar la configuración
+      // de la organización seleccionada.
+      setHoraInicio(
+        data?.hora_inicio ? data.hora_inicio.substring(0, 5) : "08:00",
+      );
+      setHoraFin(data?.hora_fin ? data.hora_fin.substring(0, 5) : "18:00");
+
+      setDiasTrabajo({
+        lunes: true,
+        martes: true,
+        miercoles: true,
+        jueves: true,
+        viernes: true,
+        sabado: true,
+        domingo: false,
+        ...(data?.dias_trabajo || {}),
+      });
+
+      setMesesTrabajo({
+        enero: true,
+        febrero: true,
+        marzo: true,
+        abril: true,
+        mayo: true,
+        junio: true,
+        julio: true,
+        agosto: true,
+        septiembre: true,
+        octubre: true,
+        noviembre: true,
+        diciembre: true,
+        ...(data?.meses_trabajo || {}),
+      });
+
+      setCierreAutomaticoMinutos(data?.cierre_automatico_minutos ?? null);
+    } catch (error) {
+      console.error("Error cargando configuración:", error);
+      setMensaje(error.message || "No se pudo cargar la configuración.");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // =====================================================
+  // CARGA INICIAL
   // =====================================================
 
   useEffect(() => {
-    const cargarConfiguracion = async () => {
+    const iniciar = async () => {
       try {
         setCargando(true);
         setMensaje("");
 
-        const orgId = await obtenerOrganizacion();
+        const disponibles = await cargarOrganizaciones();
 
-        setOrganizacionId(orgId);
+        // Si solamente tiene una organización, queda seleccionada
+        // automáticamente. Si tiene varias, se selecciona la primera
+        // solo como valor inicial y el usuario puede cambiarla.
+        const primera = disponibles[0]?.id || null;
 
-        const { data, error } = await supabase
-          .from("configuraciones_organizacion")
-          .select(
-            `
-    hora_inicio,
-    hora_fin,
-    dias_trabajo,
-    meses_trabajo
-  `,
-          )
-          .eq("organizacion_id", orgId)
-          .maybeSingle();
-        if (error) {
-          throw error;
-        }
-
-        // Si todavía no existe configuración,
-        // mantenemos los valores predeterminados.
-        if (data) {
-          setHoraInicio(
-            data.hora_inicio ? data.hora_inicio.substring(0, 5) : "08:00",
-          );
-
-          setHoraFin(data.hora_fin ? data.hora_fin.substring(0, 5) : "18:00");
-
-          if (data.dias_trabajo) {
-            setDiasTrabajo((actual) => ({
-              ...actual,
-              ...data.dias_trabajo,
-            }));
-          }
-
-          if (data.meses_trabajo) {
-            setMesesTrabajo((actual) => ({
-              ...actual,
-              ...data.meses_trabajo,
-            }));
-          }
+        if (primera) {
+          setOrganizacionId(primera);
+          await cargarConfiguracion(primera);
         }
       } catch (error) {
-        console.error("Error cargando configuración:", error);
-        setMensaje(error.message || "No se pudo cargar la configuración.");
-      } finally {
+        console.error("Error inicializando preferencias:", error);
+        setMensaje(
+          error.message || "No se pudieron cargar las organizaciones.",
+        );
         setCargando(false);
       }
     };
 
-    cargarConfiguracion();
+    iniciar();
   }, []);
+
+  // =====================================================
+  // CAMBIAR ORGANIZACIÓN
+  // =====================================================
+
+  const cambiarOrganizacion = async (orgId) => {
+    setOrganizacionId(orgId);
+
+    if (!orgId) {
+      return;
+    }
+
+    await cargarConfiguracion(orgId);
+  };
 
   // =====================================================
   // CAMBIAR DÍA
@@ -246,6 +332,7 @@ export default function PreferenciasTrabajo() {
             hora_fin: horaFin,
             dias_trabajo: diasTrabajo,
             meses_trabajo: mesesTrabajo,
+            cierre_automatico_minutos: cierreAutomaticoMinutos,
           },
           {
             onConflict: "organizacion_id",
@@ -291,6 +378,39 @@ export default function PreferenciasTrabajo() {
       </div>
 
       {/* =====================================================
+          ORGANIZACIÓN
+      ===================================================== */}
+
+      {organizaciones.length > 1 && (
+        <section className={styles.seccion}>
+          <div className={styles.tituloSeccion}>
+            <div>
+              <h3>Organización</h3>
+              <p>
+                Selecciona la farmacia cuyas preferencias deseas configurar.
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.campo}>
+            <label>Organización</label>
+            <select
+              value={organizacionId || ""}
+              onChange={(e) => cambiarOrganizacion(e.target.value)}
+              disabled={guardando}
+            >
+              <option value="">Seleccione una organización</option>
+              {organizaciones.map((organizacion) => (
+                <option key={organizacion.id} value={organizacion.id}>
+                  {organizacion.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+      )}
+
+      {/* =====================================================
           HORARIO
       ===================================================== */}
 
@@ -323,6 +443,31 @@ export default function PreferenciasTrabajo() {
               onChange={(e) => setHoraFin(e.target.value)}
             />
           </div>
+        </div>
+
+        {/* CIERRE AUTOMÁTICO */}
+
+        <div className={styles.campo}>
+          <label>Cierre automático</label>
+
+          <select
+            value={cierreAutomaticoMinutos ?? ""}
+            onChange={(e) =>
+              setCierreAutomaticoMinutos(
+                e.target.value ? Number(e.target.value) : null,
+              )
+            }
+          >
+            <option value="">Desactivado</option>
+            <option value="15">15 minutos después</option>
+            <option value="30">30 minutos después</option>
+            <option value="60">1 hora después</option>
+          </select>
+
+          <span>
+            Al finalizar el horario, el sistema cerrará automáticamente la
+            jornada después del tiempo seleccionado.
+          </span>
         </div>
 
         {/* DÍAS */}
