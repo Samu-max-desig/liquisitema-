@@ -82,7 +82,7 @@ export const contarNotificacionesSistemaNoLeidas = async (usuarioId) => {
 
 export const marcarNotificacionSistemaLeida = async (id) => {
   const { error } = await supabase
-    .from("const { error } = await supabase")
+    .from("notificaciones_sistema")
     .update({
       leida: true,
     })

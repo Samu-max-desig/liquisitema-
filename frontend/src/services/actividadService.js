@@ -4,18 +4,31 @@ import { supabase } from "../config/supabase";
 // OBTENER USUARIO ACTUAL
 // ==========================================
 
-const obtenerUsuarioActual = () => {
+const obtenerUsuarioActual = async () => {
   try {
-    const usuarioGuardado = sessionStorage.getItem("usuario");
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
-    if (!usuarioGuardado) {
+    if (error || !user?.id) {
       return null;
     }
 
-    return JSON.parse(usuarioGuardado);
+    const { data: usuario, error: usuarioError } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (usuarioError) {
+      console.error("Error obteniendo datos del usuario:", usuarioError);
+      return null;
+    }
+
+    return usuario;
   } catch (error) {
     console.error("Error obteniendo usuario actual:", error);
-
     return null;
   }
 };
@@ -34,7 +47,7 @@ export const registrarActividad = async ({
   usuarioAfectadoId = null,
 }) => {
   try {
-    const usuario = obtenerUsuarioActual();
+    const usuario = await obtenerUsuarioActual();
 
     if (!usuario) {
       console.error(

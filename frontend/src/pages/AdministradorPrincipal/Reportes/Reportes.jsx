@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
 import Swal from "sweetalert2";
 import { supabase } from "../../../config/supabase";
 import styles from "./Reportes.module.css";
@@ -12,14 +13,11 @@ export default function Reportes() {
   const [accion, setAccion] = useState("");
   const [instrucciones, setInstrucciones] = useState("");
   const [mensajeRapido, setMensajeRapido] = useState("");
+  const { usuario: usuarioActual } = useAuth();
   const cargarReportes = async () => {
     setCargando(true);
 
-    const usuarioGuardado = JSON.parse(
-      sessionStorage.getItem("usuario") || "null",
-    );
-
-    if (!usuarioGuardado?.id) {
+    if (!usuarioActual?.id) {
       setReportes([]);
       setCargando(false);
       return;
@@ -32,7 +30,7 @@ export default function Reportes() {
     const { data: usuario, error: usuarioError } = await supabase
       .from("usuarios")
       .select("organizacion_id")
-      .eq("id", usuarioGuardado.id)
+      .eq("id", usuarioActual.id)
       .single();
 
     if (usuarioError) {
@@ -53,7 +51,7 @@ export default function Reportes() {
       const { data: relacion, error: relacionError } = await supabase
         .from("usuarios_organizaciones")
         .select("organizacion_id")
-        .eq("usuario_id", usuarioGuardado.id)
+        .eq("usuario_id", usuarioActual.id)
         .eq("estado", "activo")
         .limit(1)
         .maybeSingle();
@@ -131,8 +129,10 @@ export default function Reportes() {
   };
 
   useEffect(() => {
+    if (!usuarioActual?.id) return;
+
     cargarReportes();
-  }, []);
+  }, [usuarioActual]);
 
   const abrirReporte = (reporte) => {
     setReporteSeleccionado(reporte);

@@ -1014,7 +1014,88 @@
 .footerDivider {
   color: #b8c8dc;
 }
+/* =========================================================
+   MANTENER SESIÓN
+========================================================= */
 
+.rememberSession {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  width: fit-content;
+
+  margin-top: -3px;
+  padding-left: 3px;
+
+  cursor: pointer;
+
+  user-select: none;
+}
+
+.rememberSession input {
+  position: absolute;
+
+  opacity: 0;
+
+  width: 0;
+  height: 0;
+}
+
+.rememberCheckbox {
+  width: 18px;
+  height: 18px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1.5px solid #b9cbe1;
+  border-radius: 5px;
+
+  background: white;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.rememberSession input:checked + .rememberCheckbox {
+  background: #168cff;
+  border-color: #168cff;
+
+  box-shadow: 0 3px 10px rgba(22, 140, 255, 0.22);
+}
+
+.rememberSession input:checked + .rememberCheckbox::after {
+  content: "";
+
+  width: 7px;
+  height: 11px;
+
+  border-right: 2px solid white;
+  border-bottom: 2px solid white;
+
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.rememberSession:hover .rememberCheckbox {
+  border-color: #168cff;
+}
+
+.rememberSession input:focus-visible + .rememberCheckbox {
+  box-shadow: 0 0 0 4px rgba(22, 140, 255, 0.12);
+}
+
+.rememberText {
+  color: #647d9f;
+
+  font-size: 13px;
+  line-height: 1.2;
+}
 
 /* =========================================================
    ANIMACIÓN
@@ -1103,7 +1184,18 @@
     background-size: auto 100%;
     background-repeat: no-repeat;
   }
+.rememberSession {
+  gap: 8px;
+}
 
+.rememberCheckbox {
+  width: 17px;
+  height: 17px;
+}
+
+.rememberText {
+  font-size: 12px;
+}
 
   /* -------------------------------------------------------
      ONDAS DEL ESCRITORIO

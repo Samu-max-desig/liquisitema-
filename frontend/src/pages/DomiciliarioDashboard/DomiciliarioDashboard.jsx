@@ -29,10 +29,11 @@ import Configuracion from "./Configuracion/Configuracion";
 import { generarNotificacionActividad } from "../../services/notificacionesSistemaService";
 import CountUp from "react-countup";
 import Swal from "sweetalert2";
+import { useAuth } from "../../context/AuthContext";
 console.log("CountUp:", CountUp);
 export default function DomiciliarioDashboard() {
   const [modalClaveEdicion, setModalClaveEdicion] = useState(false);
-
+  const { usuario } = useAuth();
   const [claveEdicion, setClaveEdicion] = useState("");
   const [entregaPendienteComprobante, setEntregaPendienteComprobante] =
     useState(null);
@@ -81,7 +82,6 @@ export default function DomiciliarioDashboard() {
   const [fotoComprobante, setFotoComprobante] = useState(null);
   const [domicilioSeleccionado, setDomicilioSeleccionado] = useState(null);
   const [vistaActual, setVistaActual] = useState("inicio");
-  const usuario = JSON.parse(sessionStorage.getItem("usuario"));
 
   const registrarActividadYNotificar = async ({
     usuarioId,

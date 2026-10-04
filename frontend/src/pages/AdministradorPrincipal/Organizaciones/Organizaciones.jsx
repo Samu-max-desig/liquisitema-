@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import { supabase } from "../../../config/supabase";
 import styles from "./Organizaciones.module.css";
-
+import { useAuth } from "../../../context/AuthContext";
 const FORMULARIO_INICIAL = {
   nombre: "",
   nit: "",
@@ -14,7 +14,7 @@ const FORMULARIO_INICIAL = {
 
 export default function Organizaciones() {
   const [organizaciones, setOrganizaciones] = useState([]);
-  const [usuarioActual, setUsuarioActual] = useState(null);
+  const { usuario: usuarioActual } = useAuth();
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [organizacionesPrincipales, setOrganizacionesPrincipales] = useState(
@@ -25,52 +25,6 @@ export default function Organizaciones() {
     useState(null);
 
   const [formulario, setFormulario] = useState(FORMULARIO_INICIAL);
-
-  // =========================================================
-  // CARGAR USUARIO ACTUAL
-  // =========================================================
-
-  useEffect(() => {
-    const cargarUsuarioActual = async () => {
-      try {
-        const usuarioGuardado = sessionStorage.getItem("usuario");
-
-        if (!usuarioGuardado) {
-          console.error("No hay usuario guardado en sessionStorage.");
-          return;
-        }
-
-        const usuarioLocal = JSON.parse(usuarioGuardado);
-
-        if (!usuarioLocal?.id) {
-          console.error("El usuario guardado no tiene id.");
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from("usuarios")
-          .select("id, nombre, correo, rol, estado, organizacion_id")
-          .eq("id", usuarioLocal.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Error cargando usuario actual:", error);
-          return;
-        }
-
-        if (!data) {
-          console.error("No se encontró el usuario actual.");
-          return;
-        }
-
-        setUsuarioActual(data);
-      } catch (error) {
-        console.error("Error obteniendo usuario actual:", error);
-      }
-    };
-
-    cargarUsuarioActual();
-  }, []);
 
   // =========================================================
   // CARGAR ORGANIZACIONES + RELACIONES + USUARIOS

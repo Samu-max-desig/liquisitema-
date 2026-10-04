@@ -16,7 +16,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { obtenerActividadesPorOrganizacion } from "../../../services/actividadService";
 import { supabase } from "../../../config/supabase";
-
+import { useAuth } from "../../../context/AuthContext";
 import styles from "./AdminInicio.module.css";
 
 export default function AdminInicio() {
@@ -41,7 +41,7 @@ export default function AdminInicio() {
     otro: 0,
     domiciliarios: 0,
   });
-
+  const { usuario: usuarioActual } = useAuth();
   // =========================================================
   // PREFERENCIAS DE TRABAJO
   // =========================================================
@@ -1198,16 +1198,14 @@ export default function AdminInicio() {
       try {
         setCargandoActividades(true);
 
-        const usuarioGuardado = sessionStorage.getItem("usuario");
-
-        if (!usuarioGuardado) {
+        if (!usuarioActual?.id) {
           setActividades([]);
           return;
         }
 
-        const usuario = JSON.parse(usuarioGuardado);
-
-        const organizacionId = await obtenerOrganizacionActual(usuario.id);
+        const organizacionId = await obtenerOrganizacionActual(
+          usuarioActual.id,
+        );
 
         if (!organizacionId) {
           setActividades([]);

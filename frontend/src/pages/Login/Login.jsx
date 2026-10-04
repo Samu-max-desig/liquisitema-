@@ -12,20 +12,21 @@ import {
   ArrowRightOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import Swal from "sweetalert2";
-
+import { useAuth } from "../../context/AuthContext";
 import { login } from "../../services/authService";
+import { setAuthPersistence } from "../../config/supabase";
 import logo from "../../assets/images/logo-liquisistema.png";
 
 import styles from "./Login.module.css";
 
 function Login() {
   const navigate = useNavigate();
-
+  const { cargarUsuario } = useAuth();
   const [documento, setDocumento] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
+  const [mantenerSesion, setMantenerSesion] = useState(false);
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -42,7 +43,11 @@ function Login() {
     try {
       setLoading(true);
 
+      setAuthPersistence(mantenerSesion);
+
       const { usuario } = await login(documento, password);
+
+      await cargarUsuario(usuario.id);
 
       sessionStorage.setItem("usuario", JSON.stringify(usuario));
 
@@ -226,6 +231,20 @@ function Login() {
 
               <span className={styles.fieldHint}>Ingresa tu contraseña</span>
             </div>
+
+            {/* MANTENER SESIÓN */}
+
+            <label className={styles.rememberSession}>
+              <input
+                type="checkbox"
+                checked={mantenerSesion}
+                onChange={(e) => setMantenerSesion(e.target.checked)}
+              />
+              <span className={styles.rememberCheckbox}></span>
+              <span className={styles.rememberText}>
+                Mantener mi sesión iniciada
+              </span>
+            </label>
 
             {/* BOTÓN */}
 

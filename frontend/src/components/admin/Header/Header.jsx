@@ -8,7 +8,7 @@ import {
 
 import styles from "./Header.module.css";
 import PerfilMenu from "../Perfil/PerfilMenu";
-
+import { useAuth } from "../../../context/AuthContext";
 import {
   obtenerNotificacionesSistema,
   marcarNotificacionSistemaLeida,
@@ -22,7 +22,7 @@ import { supabase } from "../../../config/supabase";
 export default function Header() {
   const [notificaciones, setNotificaciones] = useState([]);
   const [mostrarNotificaciones, setMostrarNotificaciones] = useState(false);
-
+  const { usuario, cerrarSesion } = useAuth();
   const [preferenciasSonido, setPreferenciasSonido] = useState({
     sonidos: true,
     sonido_archivo: "noti1.mp3",
@@ -36,7 +36,6 @@ export default function Header() {
     sonido_archivo: "noti1.mp3",
     volumen_sonido: 70,
   });
-  const usuario = JSON.parse(sessionStorage.getItem("usuario") || "null");
 
   const notificacionesNoLeidas = notificaciones.filter(
     (notificacion) => !notificacion.leida,
@@ -437,10 +436,13 @@ export default function Header() {
           className={styles.actionButton}
           type="button"
           title="Cerrar sesión"
-          onClick={() => {
-            localStorage.removeItem("usuario");
-            sessionStorage.removeItem("usuario");
-            window.location.href = "/";
+          onClick={async () => {
+            try {
+              await cerrarSesion();
+              window.location.href = "/";
+            } catch (error) {
+              console.error("Error cerrando sesión:", error);
+            }
           }}
         >
           <ArrowRightOnRectangleIcon />

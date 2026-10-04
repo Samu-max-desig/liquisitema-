@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
+import { useAuth } from "../../../../context/AuthContext";
 import {
   BellIcon,
   SpeakerWaveIcon,
@@ -45,7 +45,6 @@ const sonidosDisponibles = [
 ];
 
 function Notificaciones() {
-  const [usuario, setUsuario] = useState(null);
   const [organizacionId, setOrganizacionId] = useState(null);
 
   const [preferencias, setPreferencias] = useState({
@@ -58,7 +57,7 @@ function Notificaciones() {
     sonido_archivo: "noti1.mp3",
     volumen_sonido: 70,
   });
-
+  const { usuario } = useAuth();
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [cargando, setCargando] = useState(true);
@@ -70,23 +69,16 @@ function Notificaciones() {
   // ============================================================
 
   useEffect(() => {
-    const cargarUsuarioYOrganizacion = async () => {
+    const cargarOrganizacion = async () => {
       try {
-        const usuarioGuardado = JSON.parse(
-          sessionStorage.getItem("usuario") || "null",
-        );
-
-        if (!usuarioGuardado?.id) {
-          console.error("No se encontró el usuario en sesión.");
+        if (!usuario?.id) {
           setCargando(false);
           return;
         }
 
-        setUsuario(usuarioGuardado);
-
         // Primero intentamos organización directa.
-        if (usuarioGuardado.organizacion_id) {
-          setOrganizacionId(usuarioGuardado.organizacion_id);
+        if (usuario.organizacion_id) {
+          setOrganizacionId(usuario.organizacion_id);
           return;
         }
 
@@ -94,7 +86,7 @@ function Notificaciones() {
         const { data, error } = await supabase
           .from("usuarios_organizaciones")
           .select("organizacion_id")
-          .eq("usuario_id", usuarioGuardado.id)
+          .eq("usuario_id", usuario.id)
           .eq("estado", "activo")
           .limit(1)
           .maybeSingle();
@@ -108,14 +100,14 @@ function Notificaciones() {
           setOrganizacionId(data.organizacion_id);
         }
       } catch (error) {
-        console.error("Error cargando usuario y organización:", error);
+        console.error("Error cargando organización:", error);
       } finally {
         setCargando(false);
       }
     };
 
-    cargarUsuarioYOrganizacion();
-  }, []);
+    cargarOrganizacion();
+  }, [usuario]);
 
   // ============================================================
   // CARGAR PREFERENCIAS

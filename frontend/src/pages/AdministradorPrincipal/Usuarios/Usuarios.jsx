@@ -9,13 +9,12 @@ import {
   PencilIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-
+import { useAuth } from "../../../context/AuthContext";
 import { supabase } from "../../../config/supabase";
 import { registrarActividad } from "../../../services/actividadService";
 import styles from "./Usuarios.module.css";
 import { generarNotificacionUsuario } from "../../../services/notificacionesSistemaService";
 export default function Usuarios() {
-  const usuarioActual = JSON.parse(sessionStorage.getItem("usuario") || "null");
   const [organizacionActualId, setOrganizacionActualId] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -27,7 +26,7 @@ export default function Usuarios() {
   const [usuarioCompartir, setUsuarioCompartir] = useState(null);
   const [organizacionDestino, setOrganizacionDestino] = useState("");
   const [compartiendoUsuario, setCompartiendoUsuario] = useState(false);
-
+  const { usuario: usuarioActual } = useAuth();
   const [solicitudEntrante, setSolicitudEntrante] = useState(null);
   const [procesandoSolicitud, setProcesandoSolicitud] = useState(false);
 
@@ -142,9 +141,7 @@ export default function Usuarios() {
 
   const guardarEdicionUsuario = async (e) => {
     e.preventDefault();
-    const usuarioActual = JSON.parse(
-      sessionStorage.getItem("usuario") || "null",
-    );
+
     setMensaje({
       tipo: "",
       texto: "",

@@ -26,17 +26,54 @@ if (!tabId) {
   sessionStorage.setItem(TAB_ID_KEY, tabId);
 }
 
-// Storage independiente por pestaña
+// =========================================================
+// PERSISTENCIA DE SESIÓN
+// =========================================================
+
+const AUTH_PERSISTENCE_KEY = "liquisistema_auth_persistence";
+
+let authPersistence =
+  localStorage.getItem(AUTH_PERSISTENCE_KEY) === "local" ? "local" : "session";
+
+export const setAuthPersistence = (remember) => {
+  authPersistence = remember ? "local" : "session";
+
+  if (remember) {
+    localStorage.setItem(AUTH_PERSISTENCE_KEY, "local");
+  } else {
+    localStorage.removeItem(AUTH_PERSISTENCE_KEY);
+  }
+};
+
+// =========================================================
+// STORAGE DE SUPABASE
+// =========================================================
+
 const tabStorage = {
   getItem: (key) => {
+    // Si existe una sesión persistente, la recuperamos.
+    if (authPersistence === "local") {
+      return localStorage.getItem("liquisistema-auth-persistent");
+    }
+    // Sesión normal: independiente de esta pestaña.
     return sessionStorage.getItem(`${tabId}_${key}`);
   },
 
   setItem: (key, value) => {
+    if (authPersistence === "local") {
+      localStorage.setItem("liquisistema-auth-persistent", value);
+      return;
+    }
+
     sessionStorage.setItem(`${tabId}_${key}`, value);
   },
 
   removeItem: (key) => {
+    // Limpiar sesión persistente.
+    localStorage.removeItem("liquisistema-auth-persistent");
+
+    // Limpiar cualquier sesión normal de esta pestaña.
+    localStorage.removeItem(key);
     sessionStorage.removeItem(`${tabId}_${key}`);
   },
 };
